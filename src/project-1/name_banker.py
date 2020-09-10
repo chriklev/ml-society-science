@@ -45,7 +45,12 @@ class NameBanker:
     # 2nd attribute of x. Then the return if the loan is paid off to you is amount_of_loan*(1 + rate)^length_of_loan
     # The return if the loan is not paid off is -amount_of_loan.
     def expected_utility(self, x, action):
-        """Calculate expected utility."""
+        """Calculate expected utility.
+        
+        """
+        if action == 0:
+            return 0
+        
         r = self.rate
         p_c = self.get_proba()
         n = x.length_of_loan
