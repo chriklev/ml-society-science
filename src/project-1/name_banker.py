@@ -1,5 +1,5 @@
 import numpy as np
-
+from sklearn.linear_model import LogisticRegression
 
 class NameBanker:
 
@@ -7,7 +7,17 @@ class NameBanker:
     # the fit, however you should be able to predict all class
     # probabilities
     def fit(self, X, y):
+        """Fits the logistic regression model.
+
+        Args:
+            X:
+                The covariates of the data set.
+            y:
+                The response variable from the data set.
+        """
         self.data = [X, y]
+        log_reg_object = LogisticRegression(random_state=1)
+        self.model = log_reg_object.fit(X, y)
 
     # set the interest rate
     def set_interest_rate(self, rate):
@@ -16,7 +26,13 @@ class NameBanker:
 
     # Predict the probability of failure for a specific person with data x
     def predict_proba(self, x):
-        return 0
+        """Predicts the probability of a new observation given the model.
+
+        Args:
+            x:
+                A new, independent observation.
+        """
+        return self.model.predict_proba(x)
 
     def get_proba(self):
         return np.random.uniform(0, 1)
