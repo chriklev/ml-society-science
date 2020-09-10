@@ -1,7 +1,8 @@
 import numpy as np
 
+
 class NameBanker:
-    
+
     # Fit the model to the data.  You can use any model you like to do
     # the fit, however you should be able to predict all class
     # probabilities
@@ -18,7 +19,7 @@ class NameBanker:
         return 0
 
     def get_proba(self):
-        return np.random.uniform(0,1)
+        return np.random.uniform(0, 1)
 
     # The expected utility of granting the loan or not. Here there are two actions:
     # action = 0 do not grant the loan
@@ -28,18 +29,16 @@ class NameBanker:
     # 2nd attribute of x. Then the return if the loan is paid off to you is amount_of_loan*(1 + rate)^length_of_loan
     # The return if the loan is not paid off is -amount_of_loan.
     def expected_utility(self, x, action):
-        """Calculate expected utility.
-
-        """
+        """Calculate expected utility."""
         r = self.rate
         p_c = self.get_proba()
         n = x.length_of_loan
         m = x.amount_of_loan
-        
-        e_x = p_c*m*((1+r)**n-1) + (1-p_c)*(-m)
+
+        e_x = p_c * m * ((1 + r) ** n - 1) + (1 - p_c) * (-m)
         return e_x
 
     # Return the best action. This is normally the one that maximises expected utility.
     # However, you are allowed to deviate from this if you can justify the reason.
     def get_best_action(self, x):
-        return np.random.choice(2,1)[0]
+        return np.random.choice(2, 1)[0]
