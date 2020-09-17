@@ -10,10 +10,8 @@ class NameBanker:
         """Fits the logistic regression model.
 
         Args:
-            X:
-                The covariates of the data set.
-            y:
-                The response variable from the data set.
+            X: The covariates of the data set.
+            y: The response variable from the data set.
         """
         self.data = [X, y]
         log_reg_object = LogisticRegression(random_state=1)
@@ -29,12 +27,16 @@ class NameBanker:
         """Predicts the probability of a new observation given the model.
 
         Args:
-            x:
-                A new, independent observation.
+            x: A new, independent observation.
         """
         return self.model.predict_proba(x)
 
     def get_proba(self):
+        """Calculates probability of being credit-worthy.
+
+        Returns:
+            A float representing the probability of being credit-worthy.
+        """
         return np.random.uniform(0, 1)
 
     # The expected utility of granting the loan or not. Here there are two actions:
@@ -46,7 +48,10 @@ class NameBanker:
     # The return if the loan is not paid off is -amount_of_loan.
     def expected_utility(self, x, action):
         """Calculate expected utility.
-        
+
+        Args:
+            x: A new observation.
+            action: Whether or not to grant the loan.
         """
         if action == 0:
             return 0
