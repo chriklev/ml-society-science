@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 
+
 class NameBanker:
 
     # Fit the model to the data.  You can use any model you like to do
@@ -55,9 +56,9 @@ class NameBanker:
         """
         if action == 0:
             return 0
-        
+
         r = self.rate
-        p_c = self.get_proba()
+        p_c = self.predict_proba(x)
         n = x.length_of_loan
         m = x.amount_of_loan
 
@@ -67,4 +68,10 @@ class NameBanker:
     # Return the best action. This is normally the one that maximises expected utility.
     # However, you are allowed to deviate from this if you can justify the reason.
     def get_best_action(self, x):
-        return np.random.choice(2, 1)[0]
+        expected_utility_give_loan = self.expected_utility(x, 1)
+        expected_utility_no_loan = self.expected_utility(x, 0)
+
+        if expected_utility_give_loan > expected_utility_no_loan:
+            return 1
+        else:
+            return 0
