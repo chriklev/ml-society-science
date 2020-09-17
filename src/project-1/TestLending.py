@@ -8,6 +8,7 @@ features = ['checking account balance', 'duration', 'credit history',
             'job', 'persons', 'phone', 'foreign']
 target = 'repaid'
 df = pandas.read_csv('german.data', delim_whitespace=True, names=features+[target])
+df['repaid'] = df['repaid'].map({1:1, 2:0})
 #df = pandas.read_csv('D_valid.csv', sep=' ',
 #                     names=features+[target])
 #df = pa
@@ -48,26 +49,31 @@ def test_decision_maker(X_test, y_test, interest_rate, decision_maker):
 
 ### Setup model
 import random_banker # this is a random banker
-decision_maker = random_banker.RandomBanker()
-#import aleksaw_banker
-#decision_maker = aleksaw_banker.AlexBanker()
+random_decision_maker = random_banker.RandomBanker()
 
-interest_rate = 0.017
-
-### Do a number of preliminary tests by splitting the data in parts
-from sklearn.model_selection import train_test_split
-n_tests = 100
-utility = 0
-investment_return = 0
-for iter in range(n_tests):
-    X_train, X_test, y_train, y_test = train_test_split(X[encoded_features], X[target], test_size=0.2)
-    decision_maker.set_interest_rate(interest_rate)
-    decision_maker.fit(X_train, y_train)
-    Ui, Ri = test_decision_maker(X_test, y_test, interest_rate, decision_maker)
-    utility += Ui
-    investment_return += Ri
-
-print("Average utility:", utility / n_tests)
-print("Average return on investment:", investment_return / n_tests)
+import name_banker
+decision_maker = name_banker.NameBanker()
 
 
+interest_rate = 0.05
+
+def calc_utility(X, encoded_features, target, decision_maker, interest_rate):
+    ### Do a number of preliminary tests by splitting the data in parts
+    from sklearn.model_selection import train_test_split
+    n_tests = 100
+    utility = 0
+    investment_return = 0
+    for iter in range(n_tests):
+        X_train, X_test, y_train, y_test = train_test_split(X[encoded_features], X[target], test_size=0.2)
+        decision_maker.set_interest_rate(interest_rate)
+        decision_maker.fit(X_train, y_train)
+        Ui, Ri = test_decision_maker(X_test, y_test, interest_rate, decision_maker)
+        utility += Ui
+        investment_return += Ri
+    print(f"Type of banker: {type(decision_maker).__name__}")
+    print("Average utility:", utility / n_tests)
+    print("Average return on investment:", investment_return / n_tests)
+    print("\n")
+
+calc_utility(X, encoded_features, target, random_decision_maker, interest_rate)
+calc_utility(X, encoded_features, target, decision_maker, interest_rate)
