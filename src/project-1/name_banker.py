@@ -12,6 +12,11 @@ class NameBanker:
         Args:
             X: The covariates of the data set.
             y: The response variable from the data set.
+
+        Notes:
+            Using logistic regression, adapted from 
+            https://scikit-learn.org/stable/modules/generated/sklearn.
+            linear_model.LogisticRegression.html
         """
         self.data = [X, y]
 
@@ -58,11 +63,14 @@ class NameBanker:
     # 2nd attribute of x. Then the return if the loan is paid off to you is amount_of_loan*(1 + rate)^length_of_loan
     # The return if the loan is not paid off is -amount_of_loan.
     def expected_utility(self, x, action):
-        """Calculate expected utility.
+        """Calculate expected utility using the decision maker model.
 
         Args:
             x: A new observation.
             action: Whether or not to grant the loan.
+        
+        Returns:
+            The expected utility of the decision maker.
         """
         if action == 0:
             return 0
