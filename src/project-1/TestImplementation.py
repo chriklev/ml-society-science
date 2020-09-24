@@ -25,6 +25,18 @@ def get_data():
     return data
 
 def utility_from_obs(predicted_decision, true_decision, amount, duration, interest_rate):
+    """Calculates utility from a single observation.
+
+    Args:
+        predicted_decision: the model's best action
+        true_decision: if the observation repaid or not
+        amount: the lending amount
+        duration: the number of periods
+        interest_rate: the interest rate of the loan
+    
+    Returns:
+        The utility from the single observation given our action.
+    """
     if predicted_decision == 1:
         if true_decision == 1:
             return amount*((1 + interest_rate)**duration - 1)
@@ -34,6 +46,18 @@ def utility_from_obs(predicted_decision, true_decision, amount, duration, intere
         return 0
 
 def utility_from_test_set(X, y, decision_maker, interest_rate):
+    """Calculates total utility from a given test set.
+
+    Args:
+        X: the covariates of the test set
+        y: the response variable of the test set
+        decision_maker: the decision maker to use in order to calculate utility
+        interest_rate: the interest rate to use when calculating utility
+
+    Returns:
+        The sum of utility from the test set and the sum of utility divided by
+        total amount.
+    """
 
     num_obs = len(X)
     obs_utility = np.zeros(num_obs)
@@ -54,6 +78,10 @@ def utility_from_test_set(X, y, decision_maker, interest_rate):
 def compare_decision_makers(num_of_tests, response, interest_rate):
     """Tests the random banker against our name banker.
 
+    Args:
+        num_of_tests: the number of tests to run
+        response: the name of the response variable
+        interest_rate: the interest rate to use when calculating utility
     """
     bank_utility_random = np.zeros(num_of_tests)
     bank_investment_random = np.zeros_like(bank_utility_random)
@@ -85,9 +113,6 @@ def compare_decision_makers(num_of_tests, response, interest_rate):
     print(f"Avg. utility [name]= {np.sum(bank_utility_name)/num_of_tests}")
     print(f"Avg. ROI [name] {np.sum(bank_investment_name)/num_of_tests}")
 
-
-        
 if __name__ == "__main__":
     response = 'repaid'
-
     compare_decision_makers(100, response, 0.05)
