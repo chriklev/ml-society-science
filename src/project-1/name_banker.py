@@ -1,7 +1,6 @@
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 
-
 class NameBanker:
 
     # Fit the model to the data.  You can use any model you like to do
@@ -21,6 +20,11 @@ class NameBanker:
 
     # set the interest rate
     def set_interest_rate(self, rate):
+        """Sets the interest rate for the decision maker.
+
+        Args:
+            rate: the interest rate to use.
+        """
         self.rate = rate
         return
 
