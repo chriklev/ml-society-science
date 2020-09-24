@@ -69,7 +69,7 @@ def calc_utility(X, encoded_features, target, decision_maker, interest_rate):
     n_tests = 100
     utility = 0
     investment_return = 0
-    for iter in range(n_tests):
+    for _ in range(n_tests):
         X_train, X_test, y_train, y_test = train_test_split(
             X[encoded_features], X[target], test_size=0.2)
         decision_maker.set_interest_rate(interest_rate)

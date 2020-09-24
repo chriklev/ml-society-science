@@ -8,7 +8,7 @@ class NameBanker:
     # the fit, however you should be able to predict all class
     # probabilities
     def fit(self, X, y):
-        """Fits the logistic regression model.
+        """Fits a logistic regression model.
 
         Args:
             X: The covariates of the data set.
@@ -16,7 +16,7 @@ class NameBanker:
         """
         self.data = [X, y]
 
-        log_reg_object = LogisticRegression(random_state=1, max_iter = 2000)
+        log_reg_object = LogisticRegression(random_state=1, max_iter=2000)
         self.model = log_reg_object.fit(X, y)
 
     # set the interest rate
