@@ -50,8 +50,8 @@ def test_decision_maker(X_test, y_test, interest_rate, decision_maker):
 ### Setup model
 #import random_banker # this is a random banker
 #decision_maker = random_banker.RandomBanker()
-#import name_banker
-#decision_maker = name_banker.NameBanker()
+import group1_banker
+decision_maker = group1_banker.Group1Banker()
 
 interest_rate = 0.05
 
