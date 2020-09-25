@@ -1,7 +1,8 @@
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 
-class NameBanker:
+
+class Group1Banker:
 
     # Fit the model to the data.  You can use any model you like to do
     # the fit, however you should be able to predict all class
@@ -68,7 +69,7 @@ class NameBanker:
         Args:
             x: A new observation.
             action: Whether or not to grant the loan.
-        
+
         Returns:
             The expected utility of the decision maker.
         """

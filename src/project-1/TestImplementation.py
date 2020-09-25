@@ -1,5 +1,5 @@
 import random_banker
-import name_banker
+import group1_banker
 from sklearn.model_selection import train_test_split
 import numpy as np
 import pandas as pd
@@ -83,7 +83,7 @@ def utility_from_test_set(X, y, decision_maker, interest_rate):
 
 
 def compare_decision_makers(num_of_tests, response, interest_rate):
-    """Tests the random banker against our name banker.
+    """Tests the random banker against our group1 banker.
 
     Args:
         num_of_tests: the number of tests to run
@@ -92,13 +92,13 @@ def compare_decision_makers(num_of_tests, response, interest_rate):
     """
     bank_utility_random = np.zeros(num_of_tests)
     bank_investment_random = np.zeros_like(bank_utility_random)
-    bank_utility_name = np.zeros(num_of_tests)
-    bank_investment_name = np.zeros_like(bank_utility_name)
+    bank_utility_group1 = np.zeros(num_of_tests)
+    bank_investment_group1 = np.zeros_like(bank_utility_group1)
 
     # decision makers
     r_banker = random_banker.RandomBanker()
     r_banker.set_interest_rate(interest_rate)
-    n_banker = name_banker.NameBanker()
+    n_banker = group1_banker.Group1Banker()
     n_banker.set_interest_rate(interest_rate)
 
     # get data
@@ -115,7 +115,7 @@ def compare_decision_makers(num_of_tests, response, interest_rate):
 
         bank_utility_random[i], bank_investment_random[i] = utility_from_test_set(
             X_test, y_test, r_banker, interest_rate)
-        bank_utility_name[i], bank_investment_name[i] = utility_from_test_set(
+        bank_utility_group1[i], bank_investment_group1[i] = utility_from_test_set(
             X_test, y_test, n_banker, interest_rate)
 
     print(
@@ -123,9 +123,9 @@ def compare_decision_makers(num_of_tests, response, interest_rate):
     print(
         f"Avg. ROI [random]    \t= {np.sum(bank_investment_random)/num_of_tests}")
     print(
-        f"Avg. utility [name]  \t= {np.sum(bank_utility_name)/num_of_tests}")
+        f"Avg. utility [group1]  \t= {np.sum(bank_utility_group1)/num_of_tests}")
     print(
-        f"Avg. ROI [name]      \t= {np.sum(bank_investment_name)/num_of_tests}")
+        f"Avg. ROI [group1]      \t= {np.sum(bank_investment_group1)/num_of_tests}")
 
 
 if __name__ == "__main__":
