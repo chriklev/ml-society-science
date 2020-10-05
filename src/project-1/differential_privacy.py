@@ -23,18 +23,25 @@ def transform_categorical(data, p):
     return new_data
 
 
-def transform_quantitative(data, b):
+def transform_quantitative(data, b, scale_data=False):
     """ Transform a column of quantitative data with laplace noise
 
     Args:
         data: Array with the data from a quantitative attribute.
         b: Positive float used as the second parameter of the laplace distribution,
             referred to as the scale or the diversity of the distribution.
+        scale_data: If true, standardises the data before the noise is added, then
+            reverts it back to the original scale.
 
     Returns:
         Array of the same length as the input data, containing the transformed data.
     """
     noise = rnd.laplace(0, b, size=data.size)
+    if scale_data:
+        mean = data.mean()
+        std = data.std()
+        data_scaled = (data - mean)/std
+        return (data_scaled + noise)*std + mean
     return data + noise
 
 
