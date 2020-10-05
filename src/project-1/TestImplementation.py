@@ -92,14 +92,27 @@ def compare_decision_makers(num_of_tests, response, interest_rate):
     """
     bank_utility_random = np.zeros(num_of_tests)
     bank_investment_random = np.zeros_like(bank_utility_random)
+
     bank_utility_group1 = np.zeros(num_of_tests)
     bank_investment_group1 = np.zeros_like(bank_utility_group1)
 
-    # decision makers
+    bank_utility_conservative_group1 = np.zeros(num_of_tests)
+    bank_investment_conservative_group1 = np.zeros_like(
+        bank_utility_conservative_group1)
+
+    # decision makers #
+    # random banker
     r_banker = random_banker.RandomBanker()
     r_banker.set_interest_rate(interest_rate)
+
+    # group1 banker
     n_banker = group1_banker.Group1Banker()
     n_banker.set_interest_rate(interest_rate)
+
+    # conservative group1 banker
+    c_banker = group1_banker.Group1Banker()
+    c_banker.enable_utility_epsilon(max_alpha=0.05)
+    c_banker.set_interest_rate(interest_rate)
 
     # get data
     X = get_data()
@@ -112,11 +125,14 @@ def compare_decision_makers(num_of_tests, response, interest_rate):
         # fit models
         r_banker.fit(X_train, y_train)
         n_banker.fit(X_train, y_train)
+        c_banker.fit(X_train, y_train)
 
         bank_utility_random[i], bank_investment_random[i] = utility_from_test_set(
             X_test, y_test, r_banker, interest_rate)
         bank_utility_group1[i], bank_investment_group1[i] = utility_from_test_set(
             X_test, y_test, n_banker, interest_rate)
+        bank_utility_conservative_group1[i], bank_investment_conservative_group1[i] = utility_from_test_set(
+            X_test, y_test, c_banker, interest_rate)
 
     print(
         f"Avg. utility [random]\t= {np.sum(bank_utility_random)/num_of_tests}")
@@ -126,8 +142,13 @@ def compare_decision_makers(num_of_tests, response, interest_rate):
         f"Avg. utility [group1]  \t= {np.sum(bank_utility_group1)/num_of_tests}")
     print(
         f"Avg. ROI [group1]      \t= {np.sum(bank_investment_group1)/num_of_tests}")
+    print(
+        f"Avg. utility [conservative group1]  \t= {np.sum(bank_utility_conservative_group1)/num_of_tests}")
+    print(
+        f"Avg. ROI [conservative group1]      \t= {np.sum(bank_investment_conservative_group1)/num_of_tests}")
 
 
 if __name__ == "__main__":
+    np.random.seed(1)
     response = 'repaid'
     compare_decision_makers(100, response, 0.05)
