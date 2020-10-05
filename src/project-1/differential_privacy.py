@@ -1,4 +1,7 @@
 """ Module for making data diferrentially private
+
+# TODO: Figure out what to do with discrete numerical attributes
+    Round them off after adding noise?
 """
 
 import numpy as np
@@ -70,6 +73,8 @@ def apply_random_mechanism_to_data(data_frame, quantitative_names, categorical_n
 
 
 if __name__ == "__main__":
+    """ Run this file to test how the module works on the german data.
+    """
     import pandas as pd
 
     features = ['checking account balance', 'duration', 'credit history',
