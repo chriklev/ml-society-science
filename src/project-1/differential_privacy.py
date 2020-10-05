@@ -6,14 +6,14 @@ import numpy.random as rnd
 
 
 def transform_categorical(data, p):
-    """ Transform a collumn of categorical data data with a randomised response mechanism
+    """ Transform a column of categorical data data with a randomised response mechanism
 
     Args:
-        data: Nx1 ndarray with data from a categorical attribute
-        p: The probablity of changing a datapoint
+        data: Array with data from a categorical attribute.
+        p: The probablity of changing a datapoint.
 
     Returns:
-        Nx1 ndarray with the transformed data
+        Array of the same length as the input data, containing the transformed data.
     """
     transform_indexing = rnd.choice([True, False], size=data.size, p=[p, 1-p])
     # Draw new values uniformly for all datapoints that needs to be changed
@@ -21,6 +21,21 @@ def transform_categorical(data, p):
     new_data = data.copy()
     new_data[transform_indexing] = new_values
     return new_data
+
+
+def transform_quantitative(data, b):
+    """ Transform a column of quantitative data with laplace noise
+
+    Args:
+        data: Array with the data from a quantitative attribute.
+        b: Positive float used as the second parameter of the laplace distribution,
+            referred to as the scale or the diversity of the distribution.
+
+    Returns:
+        Array of the same length as the input data, containing the transformed data.
+    """
+    noise = rnd.laplace(0, b, size=data.size)
+    return data + noise
 
 
 if __name__ == "__main__":
