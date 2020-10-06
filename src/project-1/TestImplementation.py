@@ -149,6 +149,9 @@ def compare_decision_makers(num_of_tests, response, interest_rate):
 
 
 if __name__ == "__main__":
+    import time
+    t0 = time.time()
     np.random.seed(1)
     response = 'repaid'
     compare_decision_makers(100, response, 0.05)
+    print(time.time() - t0)

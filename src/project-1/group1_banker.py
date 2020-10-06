@@ -39,7 +39,7 @@ class Group1Banker:
             y: the response variable
 
         Notes:
-            Using logistic regression, adapted from 
+            Using logistic regression, adapted from
             https://scikit-learn.org/stable/modules/generated/sklearn.
             linear_model.LogisticRegression.html
         """
@@ -60,7 +60,7 @@ class Group1Banker:
         """Estimates the threshold to use in the utility calculations based on
         the training data. The method does this by splitting the training data
         into a training set and a validation set. The validation set is used in
-        order to estimate the tuning parameter 'epsilon' which implicitly 
+        order to estimate the tuning parameter 'epsilon' which implicitly
         calculates the estimated probability of type 1 error 'alpha_value' that
         should be below the threshold of 'max_alpha'.
 
@@ -80,7 +80,7 @@ class Group1Banker:
         MAX_ITER = 100000
         COUNT_ITER = 0
         epsilon = 0
-        delta_epsilon = 100
+        delta_epsilon = 1000
 
         # initial estimated alpha value
         alpha_value = 1
@@ -94,7 +94,7 @@ class Group1Banker:
         return epsilon
 
     def _calculate_false_positive_rate(self, temp_model, X_test, y_test, eps):
-        """Calculates the percentage of false positives among the results on 
+        """Calculates the percentage of false positives among the results on
         the test set from the training data.
 
         Args:
@@ -153,7 +153,7 @@ class Group1Banker:
 
     # Predict the probability of failure for a specific person with data x
     def predict_proba(self, x):
-        """Predicts the probability for [0,1] given a new observation given the 
+        """Predicts the probability for [0,1] given a new observation given the
         model.
 
         Args:
@@ -222,7 +222,7 @@ class Group1Banker:
         An epsilon for utility is also set as the threshold that the expected
         utility should exceed in order to get the best action. This utility
         epsilon is 0 if the banker is not configured to use this functionality.
-        Otherwise it is estimated from the training data as the value that 
+        Otherwise it is estimated from the training data as the value that
         provide a type 1 error below the parameter '_max_type1_error'.
 
         Args:
