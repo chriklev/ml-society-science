@@ -80,7 +80,7 @@ class Group1Banker:
         MAX_ITER = 100000
         COUNT_ITER = 0
         epsilon = 0
-        delta_epsilon = 1000
+        delta_epsilon = 300
 
         # initial estimated alpha value
         alpha_value = 1

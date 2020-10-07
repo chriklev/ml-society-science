@@ -1,6 +1,6 @@
 import random_banker
 import group1_banker
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
 import numpy as np
 import pandas as pd
 
@@ -16,7 +16,8 @@ def get_data():
                            delim_whitespace=True, names=features)
     numeric_variables = ['duration', 'age', 'residence time',
                          'installment', 'amount', 'persons', 'credits']
-    data = data_raw[numeric_variables]
+    data = pd.DataFrame(columns=features)
+    data[numeric_variables] = data_raw[numeric_variables]
 
     # Mapping the response to 0 and 1
     data["repaid"] = data_raw["repaid"].map({1: 1, 2: 0})
@@ -82,23 +83,23 @@ def utility_from_test_set(X, y, decision_maker, interest_rate):
     return np.sum(obs_utility), np.sum(obs_utility)/np.sum(obs_amount)
 
 
-def compare_decision_makers(num_of_tests, response, interest_rate):
+def compare_decision_makers(num_of_repeats, num_of_folds, response, interest_rate):
     """Tests the random banker against our group1 banker.
 
     Args:
-        num_of_tests: the number of tests to run
+        num_of_repeats: the number of tests to run
         response: the name of the response variable
         interest_rate: the interest rate to use when calculating utility
     """
-    bank_utility_random = np.zeros(num_of_tests)
-    bank_investment_random = np.zeros_like(bank_utility_random)
-
-    bank_utility_group1 = np.zeros(num_of_tests)
-    bank_investment_group1 = np.zeros_like(bank_utility_group1)
-
-    bank_utility_conservative_group1 = np.zeros(num_of_tests)
-    bank_investment_conservative_group1 = np.zeros_like(
-        bank_utility_conservative_group1)
+    column_names = [
+        "random_utility",
+        "random_roi",
+        "group1_utility",
+        "group1_roi",
+        "conservative_utility",
+        "conservative_roi"
+    ]
+    results = pd.DataFrame(columns=column_names)
 
     # decision makers #
     # random banker
@@ -115,37 +116,31 @@ def compare_decision_makers(num_of_tests, response, interest_rate):
     c_banker.set_interest_rate(interest_rate)
 
     # get data
-    X = get_data()
-    covariates = X.columns[X.columns != response]
+    data = get_data()
+    # pop removes and returns the given column, "response" is no longer in data
+    y = data.pop(response)
 
-    for i in range(num_of_tests):
-        X_train, X_test, y_train, y_test = train_test_split(
-            X[covariates], X[response], test_size=0.2)
+    # repeated cross validation
+    i = 0
+    for _ in range(num_of_repeats):
+        kf = KFold(n_splits=num_of_folds, shuffle=True)
+        for train_indices, test_indices in kf.split(data):
+            X_train, X_test = \
+                data.iloc[train_indices, :], data.iloc[test_indices, :]
+            y_train, y_test = y[train_indices], y[test_indices]
+            # fit models
+            r_banker.fit(X_train, y_train)
+            n_banker.fit(X_train, y_train)
+            c_banker.fit(X_train, y_train)
 
-        # fit models
-        r_banker.fit(X_train, y_train)
-        n_banker.fit(X_train, y_train)
-        c_banker.fit(X_train, y_train)
-
-        bank_utility_random[i], bank_investment_random[i] = utility_from_test_set(
-            X_test, y_test, r_banker, interest_rate)
-        bank_utility_group1[i], bank_investment_group1[i] = utility_from_test_set(
-            X_test, y_test, n_banker, interest_rate)
-        bank_utility_conservative_group1[i], bank_investment_conservative_group1[i] = utility_from_test_set(
-            X_test, y_test, c_banker, interest_rate)
-
-    print(
-        f"Avg. utility [random]\t= {np.sum(bank_utility_random)/num_of_tests}")
-    print(
-        f"Avg. ROI [random]    \t= {np.sum(bank_investment_random)/num_of_tests}")
-    print(
-        f"Avg. utility [group1]  \t= {np.sum(bank_utility_group1)/num_of_tests}")
-    print(
-        f"Avg. ROI [group1]      \t= {np.sum(bank_investment_group1)/num_of_tests}")
-    print(
-        f"Avg. utility [conservative group1]  \t= {np.sum(bank_utility_conservative_group1)/num_of_tests}")
-    print(
-        f"Avg. ROI [conservative group1]      \t= {np.sum(bank_investment_conservative_group1)/num_of_tests}")
+            results.loc[i, "random_utility"], results.loc[i, "random_roi"] = utility_from_test_set(
+                X_test, y_test, r_banker, interest_rate)
+            results.loc[i, "group1_utility"], results.loc[i, "group1_roi"] = utility_from_test_set(
+                X_test, y_test, n_banker, interest_rate)
+            results.loc[i, "conservative_utility"], results.loc[i, "conservative_roi"] = utility_from_test_set(
+                X_test, y_test, c_banker, interest_rate)
+            i += 1
+    return results
 
 
 if __name__ == "__main__":
@@ -153,5 +148,17 @@ if __name__ == "__main__":
     t0 = time.time()
     np.random.seed(1)
     response = 'repaid'
-    compare_decision_makers(100, response, 0.05)
+    results = compare_decision_makers(50, 5, response, 0.1)
     print(time.time() - t0)
+
+    print(results.describe())
+
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    sns.distplot(results["random_utility"], label="Random banker")
+    sns.distplot(results["group1_utility"], label="Group1 banker")
+    sns.distplot(results["conservative_utility"], label="Conservative banker")
+    plt.legend()
+    plt.xlabel("Average utility over different random train/test draws")
+    plt.ylabel("Density")
+    plt.show()
