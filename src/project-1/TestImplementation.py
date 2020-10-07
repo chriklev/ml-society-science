@@ -1,5 +1,6 @@
 import random_banker
 import group1_banker
+import differential_privacy
 from sklearn.model_selection import KFold
 import numpy as np
 import pandas as pd
@@ -16,7 +17,7 @@ def get_data():
                            delim_whitespace=True, names=features)
     numeric_variables = ['duration', 'age', 'residence time',
                          'installment', 'amount', 'persons', 'credits']
-    data = pd.DataFrame(columns=features)
+    data = pd.DataFrame(columns=numeric_variables)
     data[numeric_variables] = data_raw[numeric_variables]
 
     # Mapping the response to 0 and 1
@@ -83,7 +84,52 @@ def utility_from_test_set(X, y, decision_maker, interest_rate):
     return np.sum(obs_utility), np.sum(obs_utility)/np.sum(obs_amount)
 
 
-def compare_decision_makers(num_of_repeats, num_of_folds, response, interest_rate):
+def repeated_cross_validation_utility(X, y, bankers, banker_names, interest_rate, n_repeats=20, n_folds=5):
+    """ Preforms repeated cross validation to find estimates for average utility
+    and return of investment for differnt bankers.
+
+    Args:
+        X: pandas data frame with covariates
+        y: pandas series with the response
+        bankers: iterable with bankers implementing the fit() and get_best_action() methods.
+        banker_names: iterable with strings, containing the names of the bankers.
+            Used to seperate the results in the "results" dictionary
+        interest_rate: float interest rate by month
+        n_repeats: number of repeats in repeated cross validation
+        n_folds: number of folds in k-fold cross validation
+
+    Returns:
+        Dictionary on the form {string: numpy.ndarray(shape=(nrepeats, n_folds))}
+    """
+    results = {}
+    for name in banker_names:
+        results[name + "_utility"] = np.empty(shape=(n_repeats, n_folds))
+        results[name + "_roi"] = np.empty(shape=(n_repeats, n_folds))
+
+    for i in range(n_repeats):
+
+        kf = KFold(n_splits=n_folds, shuffle=True)
+        j = 0
+        for train_indices, test_indices in kf.split(X):
+            X_train = X.iloc[train_indices, :]
+            X_test = X.iloc[test_indices, :]
+            y_train = y[train_indices]
+            y_test = y[test_indices]
+
+            # fit models
+            for banker in bankers:
+                banker.fit(X_train, y_train)
+            # find test scores
+            for banker, name in zip(bankers, banker_names):
+                util, roi = utility_from_test_set(
+                    X_test, y_test, banker, interest_rate)
+                results[name + "_utility"][i, j] = util
+                results[name + "_roi"][i, j] = roi
+            j += 1
+    return results
+
+
+def compare_decision_makers(n_repeats, n_folds, response, interest_rate):
     """Tests the random banker against our group1 banker.
 
     Args:
@@ -91,28 +137,19 @@ def compare_decision_makers(num_of_repeats, num_of_folds, response, interest_rat
         response: the name of the response variable
         interest_rate: the interest rate to use when calculating utility
     """
-    column_names = [
-        "random_utility",
-        "random_roi",
-        "group1_utility",
-        "group1_roi",
-        "conservative_utility",
-        "conservative_roi"
-    ]
-    results = pd.DataFrame(columns=column_names)
 
-    # decision makers #
+    ## decision makers ##
     # random banker
     r_banker = random_banker.RandomBanker()
     r_banker.set_interest_rate(interest_rate)
 
     # group1 banker
-    n_banker = group1_banker.Group1Banker()
-    n_banker.set_interest_rate(interest_rate)
+    g_banker = group1_banker.Group1Banker()
+    g_banker.set_interest_rate(interest_rate)
 
     # conservative group1 banker
     c_banker = group1_banker.Group1Banker()
-    c_banker.enable_utility_epsilon(max_alpha=0.05)
+    c_banker.enable_utility_epsilon(max_alpha=0.1)
     c_banker.set_interest_rate(interest_rate)
 
     # get data
@@ -120,27 +157,76 @@ def compare_decision_makers(num_of_repeats, num_of_folds, response, interest_rat
     # pop removes and returns the given column, "response" is no longer in data
     y = data.pop(response)
 
-    # repeated cross validation
-    i = 0
-    for _ in range(num_of_repeats):
-        kf = KFold(n_splits=num_of_folds, shuffle=True)
-        for train_indices, test_indices in kf.split(data):
-            X_train, X_test = \
-                data.iloc[train_indices, :], data.iloc[test_indices, :]
-            y_train, y_test = y[train_indices], y[test_indices]
-            # fit models
-            r_banker.fit(X_train, y_train)
-            n_banker.fit(X_train, y_train)
-            c_banker.fit(X_train, y_train)
+    return repeated_cross_validation_utility(
+        X=data, y=y,
+        bankers=[r_banker, g_banker, c_banker],
+        banker_names=["random", "group1", "conservative"],
+        interest_rate=interest_rate,
+        n_repeats=n_repeats, n_folds=n_folds
+    )
 
-            results.loc[i, "random_utility"], results.loc[i, "random_roi"] = utility_from_test_set(
-                X_test, y_test, r_banker, interest_rate)
-            results.loc[i, "group1_utility"], results.loc[i, "group1_roi"] = utility_from_test_set(
-                X_test, y_test, n_banker, interest_rate)
-            results.loc[i, "conservative_utility"], results.loc[i, "conservative_roi"] = utility_from_test_set(
-                X_test, y_test, c_banker, interest_rate)
-            i += 1
-    return results
+
+def get_differtially_private_data(laplace_lambda, p):
+    """
+    """
+    features = ['checking account balance', 'duration', 'credit history',
+                'purpose', 'amount', 'savings', 'employment', 'installment',
+                'marital status', 'other debtors', 'residence time',
+                'property', 'age', 'other installments', 'housing', 'credits',
+                'job', 'persons', 'phone', 'foreign', 'repaid']
+
+    data_raw = pd.read_csv("german.data",
+                           delim_whitespace=True,
+                           names=features)
+
+    numeric_variables = ['duration', 'age', 'residence time', 'installment',
+                         'amount', 'persons', 'credits']
+    categorical_variables = set(features).difference(set(numeric_variables))
+
+    data_raw = differential_privacy.apply_random_mechanism_to_data(
+        data_raw, numeric_variables, categorical_variables, 0.3, 0.4)
+
+    data = pd.DataFrame(columns=numeric_variables)
+    data[numeric_variables] = data_raw[numeric_variables]
+
+    # Mapping the response to 0 and 1
+    data["repaid"] = data_raw["repaid"].map({1: 1, 2: 0})
+    # Create dummy variables for all the catagorical variables
+    not_dummy_names = numeric_variables + ["repaid"]
+    dummy_names = [x not in not_dummy_names for x in features]
+    dummies = pd.get_dummies(data_raw.iloc[:, dummy_names], drop_first=True)
+    data = data.join(dummies)
+
+    return data
+
+
+def compare_preformance_differential_privacy(n_repeats, n_folds, response, interest_rate):
+    """
+    """
+    g_banker = group1_banker.Group1Banker()
+    g_banker.set_interest_rate(interest_rate)
+
+    data = get_data()
+    data_private = get_differtially_private_data(0.3, 0.4)
+
+    y_normal = data.pop(response)
+    y_private = data_private.pop(response)
+
+    result_normal = repeated_cross_validation_utility(
+        X=data, y=y_normal,
+        bankers=[g_banker],
+        banker_names=["normal_data"],
+        interest_rate=interest_rate,
+        n_repeats=n_repeats, n_folds=n_folds)
+
+    result_private = repeated_cross_validation_utility(
+        X=data_private, y=y_private,
+        bankers=[g_banker],
+        banker_names=["private_data"],
+        interest_rate=interest_rate,
+        n_repeats=n_repeats, n_folds=n_folds)
+
+    return result_normal, result_private
 
 
 if __name__ == "__main__":
@@ -148,16 +234,27 @@ if __name__ == "__main__":
     t0 = time.time()
     np.random.seed(1)
     response = 'repaid'
-    results = compare_decision_makers(50, 5, response, 0.1)
-    print(time.time() - t0)
-
+    """
+    results = compare_decision_makers(
+        n_repeats=20, n_folds=5, response=response, interest_rate=0.05)
+    for key in results:
+        results[key] = results[key].flatten()
+    results = pd.DataFrame(results)
     print(results.describe())
+    """
+    results_normal, results_private = compare_preformance_differential_privacy(
+        n_repeats=50, n_folds=5, response=response, interest_rate=0.05
+    )
+    print(f"minutes elapsed: {(time.time() - t0)/60}")
+
+    print(np.mean(results_private["private_data_utility"]) -
+          np.mean(results_normal["normal_data_utility"]))
 
     import matplotlib.pyplot as plt
     import seaborn as sns
-    sns.distplot(results["random_utility"], label="Random banker")
-    sns.distplot(results["group1_utility"], label="Group1 banker")
-    sns.distplot(results["conservative_utility"], label="Conservative banker")
+    sns.distplot(results_normal["normal_data_utility"], label="Original data")
+    sns.distplot(results_private["private_data_utility"],
+                 label="Differentially private data")
     plt.legend()
     plt.xlabel("Average utility over different random train/test draws")
     plt.ylabel("Density")

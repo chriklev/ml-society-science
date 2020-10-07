@@ -44,7 +44,7 @@ def transform_quantitative(data, b, scale_noise=False):
     return data + noise
 
 
-def apply_random_mechanism_to_data(data_frame, quantitative_names, categorical_names):
+def apply_random_mechanism_to_data(data_frame, quantitative_names, categorical_names, laplace_delta, p):
     """ Aplies a random mechanism to certain columns of a data frame
 
     Args:
@@ -53,18 +53,18 @@ def apply_random_mechanism_to_data(data_frame, quantitative_names, categorical_n
             you wish to add laplace noise to.
         categorical_names: An iterable with the column names of the categorical attributes you
             wish to transform.
+        laplace_delta: The delta parameter to supply to the laplace noise
+        p: The probability to suppøy to the random noise for categorical data.
 
     Returns:
         Pandas data frame of the same dimentions as the one supplied, but with differentially private data.
     """
     dp_data = data_frame.copy()
 
-    noise_b = 0.3
     for column_name in quantitative_names:
         dp_data[column_name] = transform_quantitative(
-            data_frame[column_name], b=noise_b, scale_noise=True)
+            data_frame[column_name], b=laplace_delta, scale_noise=True)
 
-    p = 0.4
     for column_name in categorical_names:
         dp_data[column_name] = transform_categorical(
             data_frame[column_name], p)
@@ -93,4 +93,4 @@ if __name__ == "__main__":
 
     print(data_raw.head())
     print(apply_random_mechanism_to_data(
-        data_raw, numeric_variables, categorical_variables).head())
+        data_raw, numeric_variables, categorical_variables, 0.3, 0.4).head())
