@@ -166,7 +166,7 @@ def compare_decision_makers(n_repeats, n_folds, response, interest_rate):
     )
 
 
-def get_differtially_private_data(laplace_lambda, p):
+def get_differentially_private_data(laplace_lambda, p):
     """
     """
     features = ['checking account balance', 'duration', 'credit history',
@@ -213,7 +213,7 @@ def compare_preformance_differential_privacy(n_repeats, n_folds, response, inter
     g_banker.set_interest_rate(interest_rate)
 
     data = get_data()
-    data_private = get_differtially_private_data(0.3, 0.4)
+    data_private = get_differentially_private_data(0.3, 0.4)
 
     y_normal = data.pop(response)
     y_private = data_private.pop(response)
@@ -241,19 +241,19 @@ def compare_privacy_garantees(laplace_lambdas, p, n_repeats, n_folds, response, 
     g_banker = group1_banker.Group1Banker()
     g_banker.set_interest_rate(interest_rate)
 
-    data_frames = {}
-    data_frames[0] = get_data()
-    for i, laplace_lambda in enumerate(laplace_lambdas):
-        data_frames[i+1] = get_differtially_private_data(laplace_lambda, p)
+    data_frames = []
+    data_frames.append(get_data())
+    for laplace_lambda in laplace_lambdas:
+        data_frames.append(get_differentially_private_data(laplace_lambda, p))
 
     results = {}
-    for i, key in enumerate(data_frames):
-        y = data_frames[i].pop(response)
+    for i, data_frame in enumerate(data_frames):
+        y = data_frame.pop(response)
 
         new_result = repeated_cross_validation_utility(
-            X=data_frames[i], y=y,
+            X=data_frame, y=y,
             bankers=[g_banker],
-            banker_names=[f"lambda{key}"],
+            banker_names=[f"lambda{i}"],
             interest_rate=interest_rate,
             n_repeats=n_repeats, n_folds=n_folds)
 
@@ -298,8 +298,8 @@ if __name__ == "__main__":
     for key in results:
         if "_utility" in key:
             if i != 0:
-                loss_in_utility[i-1] = np.mean(
-                    results[key]) - avg_utility_normal
+                loss_in_utility[i-1] = avg_utility_normal - \
+                    np.mean(results[key])
             i += 1
 
     print(f"minutes elapsed: {(time.time() - t0)/60}")
