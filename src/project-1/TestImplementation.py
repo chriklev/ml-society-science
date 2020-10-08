@@ -167,7 +167,14 @@ def compare_decision_makers(n_repeats, n_folds, response, interest_rate):
 
 
 def get_differentially_private_data(laplace_lambda, p):
-    """
+    """ Reads in the german data and applies a random mechanism
+
+    Args:
+        laplace_lambda: the lambda value to use in the laplace noise
+        p: the probability of changing a categorical value
+
+    Returns:
+        Differentially private data set.
     """
     features = ['checking account balance', 'duration', 'credit history',
                 'purpose', 'amount', 'savings', 'employment', 'installment',
@@ -236,7 +243,19 @@ def compare_preformance_differential_privacy(n_repeats, n_folds, response, inter
 
 
 def compare_privacy_garantees(laplace_lambdas, p, n_repeats, n_folds, response, interest_rate):
-    """
+    """ Compare utility of models with differnt privacy guarantees.
+
+    Args:
+        laplace_lambdas: iterable with the different lambda values to use
+        p: probability of changing a categorical variable
+        n_repeats: number of repeats in the repeated cross validation
+        n_folds: number of folds in k-fold cv
+        response: the name of the response variable
+        interest_rate: the interest rate by month to use when calculating utility
+
+    Returns:
+        Dictionary on the form {string: numpy.ndarray(shape=(nrepeats, n_folds))}
+        with the results.
     """
     g_banker = group1_banker.Group1Banker()
     g_banker.set_interest_rate(interest_rate)
@@ -308,7 +327,9 @@ if __name__ == "__main__":
     import seaborn as sns
 
     plt.plot(laplace_lambdas, loss_in_utility)
-    plt.savefig("privacy_guarantees.png")
+    plt.xlabel("lambda used in the laplace noise")
+    plt.ylabel("difference (original - privatised)")
+    plt.savefig("img/privacy_guarantees.png")
     plt.show()
     """
     sns.distplot(results_normal["normal_data_utility"], label="Original data")
