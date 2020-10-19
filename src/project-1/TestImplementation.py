@@ -4,6 +4,8 @@ import differential_privacy
 from sklearn.model_selection import KFold
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
 
 
 def get_data():
@@ -283,11 +285,70 @@ def compare_privacy_garantees(laplace_lambdas, p, n_repeats, n_folds, response, 
     return results
 
 
+def _get_gender(obs):
+    """Gets gender from observation, 1 = male and 0 = female.
+
+    Args:
+        obs: covariates from a single observation
+    Returns:
+        1 if male, 0 if female.
+    """
+    if obs['marital status_A92'] == 1:
+        return 0
+    else:
+        return 1
+
+
+def fairness(response, interest_rate=0.05):
+
+    data = get_data()
+    y = data.pop(response)
+    X = data
+
+    g_banker = group1_banker.Group1Banker()
+    g_banker.set_interest_rate(interest_rate)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, random_state=1, test_size=0.25)
+
+    g_banker.fit(X_train, y_train)
+
+    num_obs = len(X_test)
+    a = np.zeros(num_obs)
+    y = np.zeros(num_obs)
+    z = np.zeros(num_obs)
+
+    for new_obs in range(num_obs):
+        obs = X_test.iloc[new_obs]
+
+        a_i = g_banker.get_best_action(obs)
+        z_i = _get_gender(obs)
+        y_i = y_test.iloc[new_obs]
+
+        a[new_obs] = a_i
+        y[new_obs] = y_i
+        z[new_obs] = z_i
+
+    fairness_df = pd.DataFrame({'z': list(z), 'a': list(a), 'y': list(y)})
+
+    men = fairness_df.loc[fairness_df['z'] == 1]
+    women = fairness_df.loc[fairness_df['z'] == 0]
+
+    men[['a', 'y']].plot.hist(stacked=True)
+    plt.show()
+
+    women[['a', 'y']].plot.hist(stacked=True)
+    plt.show()
+
+
 if __name__ == "__main__":
     import time
     t0 = time.time()
     np.random.seed(1)
     response = 'repaid'
+
+    fairness(response)
+
     """
     results = compare_decision_makers(
         n_repeats=20, n_folds=5, response=response, interest_rate=0.05)
