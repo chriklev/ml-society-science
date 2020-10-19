@@ -17,10 +17,8 @@ def countplot():
     banker.fit(X, y)
 
     # Get predictions
-    n_rows = X.shape[0]
-    y_predicted = np.empty(n_rows)
-    for i in range(n_rows):
-        y_predicted[i] = banker.get_best_action(X.iloc[i])
+    y_predicted = banker.get_best_action(X)
+    print(y_predicted.shape)
 
     is_female = X["marital status_A92"] == 1
     sex = pd.Series(is_female.map({True: "female", False: "male"}))
