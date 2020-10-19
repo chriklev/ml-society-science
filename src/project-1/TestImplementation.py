@@ -290,9 +290,6 @@ if __name__ == "__main__":
     t0 = time.time()
     np.random.seed(1)
     response = 'repaid'
-
-    fairness(response)
-
     """
     results = compare_decision_makers(
         n_repeats=20, n_folds=5, response=response, interest_rate=0.05)
