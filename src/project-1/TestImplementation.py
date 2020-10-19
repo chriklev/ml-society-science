@@ -346,12 +346,29 @@ def fairness(response, interest_rate=0.05):
     z0_y0_a1 = len(women[(women['y'] == 0) & (
         women['a'] == 1)])/len(women[women['y'] == 0])
 
+    prob_m_y1 = np.array([z1_y1_a1, 1-z1_y1_a1])
+    prob_w_y1 = np.array([z0_y1_a1, 1-z0_y1_a1])
+
+    prob_m_y0 = np.array([z1_y0_a1, 1-z1_y0_a1])
+    prob_w_y0 = np.array([z0_y0_a1, 1-z0_y0_a1])
+
+    total_var_dist_y1 = total_variation(prob_m_y1, prob_w_y1)
+    total_var_dist_y0 = total_variation(prob_m_y0, prob_w_y0)
+
+    print(f"TVD y=1 = {total_var_dist_y1}")
+    print(f"TVD y=0 = {total_var_dist_y0}")
+
+
+def total_variation(prob1, prob2):
+    return (1/2)*np.sum(np.abs(prob1 - prob2))
+
 
 if __name__ == "__main__":
     import time
     t0 = time.time()
     np.random.seed(1)
     response = 'repaid'
+    fairness(response)
     """
     results = compare_decision_makers(
         n_repeats=20, n_folds=5, response=response, interest_rate=0.05)
