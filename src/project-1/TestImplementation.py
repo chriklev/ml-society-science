@@ -19,28 +19,34 @@ def get_raw_data():
                            delim_whitespace=True, names=features)
 
     # Mapping the response to 0 and 1
-    data_raw["repaid"] = data_raw["repaid"].map({1: 1, 2: 0})
+    data_raw.loc[:, "repaid"] = data_raw["repaid"].map({1: 1, 2: 0})
+
+    categorical_columns = ['checking account balance', 'credit history',
+                           'purpose', 'savings', 'employment', 'marital status',
+                           'other debtors', 'property', 'other installments',
+                           'housing', 'job', 'phone', 'foreign', 'repaid']
+    data_raw.loc[:, categorical_columns] = data_raw[categorical_columns].apply(
+        lambda x: x.astype('category'))
 
     return data_raw
 
 
-def one_hot_encode(data, columns):
+def one_hot_encode(data):
     """ One hot encodes specified columns.
     """
-    dummies = pd.get_dummies(data.iloc[:, columns], drop_first=True)
-    data.drop(columns, axis=1, inplace=True)
+    columns = ['checking account balance', 'credit history',
+               'purpose', 'savings', 'employment', 'marital status',
+               'other debtors', 'property', 'other installments',
+               'housing', 'job', 'phone', 'foreign']
+    dummies = pd.get_dummies(data[columns], drop_first=True)
+    data = data.drop(columns, axis=1)
 
     return data.join(dummies)
 
 
 def get_data():
     data = get_raw_data()
-
-    categorical_columns = ['checking account balance', 'credit history',
-                           'purpose', 'savings', 'employment', 'marital status',
-                           'other debtors', 'property', 'other installments',
-                           'housing', 'job', 'phone', 'foreign']
-    data = one_hot_encode(data, categorical_columns)
+    data = one_hot_encode(data)
 
     return data
 
