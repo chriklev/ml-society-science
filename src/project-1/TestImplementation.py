@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+import tensorflow_probability as tfp
+import tensorflow as tf
 
 
 def get_data():
@@ -298,6 +300,23 @@ def _get_gender(obs):
         return 1
 
 
+def _get_priors(model):
+    priors = tfp.distributions.Normal(
+        loc=[[i for i in model.coef_[0]]], scale=1)
+
+    return priors
+
+
+def _get_likelihood(model, X, y_values):
+    log_probs = model.predict_log_proba(X)[:, 0]
+    log_lik = 0
+
+    for i in range(len(y_values)):
+        log_lik += y_values[i]*log_probs[i] + (1-y_values[i])*(1-log_probs[i])
+
+    return log_lik
+
+
 def fairness(response, interest_rate=0.05):
     """Calculates proportion of a=1 conditional on gender (z) and response (y).
 
@@ -359,6 +378,36 @@ def fairness(response, interest_rate=0.05):
     print(f"TVD y=0 = {total_var_dist_y0}")
 
 
+def stochastic_gradient_descent(response, interest_rate):
+    data = get_data()
+    y = data.pop(response)
+    X = data
+
+    g_banker = group1_banker.Group1Banker()
+    g_banker.set_interest_rate(interest_rate)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, random_state=1, test_size=0.25)
+
+    g_banker.fit(X_train, y_train)
+
+    log_model = g_banker.model
+
+    # priors
+    priors = _get_priors(log_model)
+
+    # the likelihood of the data
+    log_likelihood = _get_likelihood(log_model, X_test, y_test.to_numpy())
+    likelihood = tfp.distributions.Deterministic(np.exp(log_likelihood))
+
+    # the posterior
+    posterior = tfp.distributions.JointDistributionNamed({
+        'p': priors
+    })
+
+    breakpoint()
+
+
 def total_variation(prob1, prob2):
     return (1/2)*np.sum(np.abs(prob1 - prob2))
 
@@ -369,6 +418,7 @@ if __name__ == "__main__":
     np.random.seed(1)
     response = 'repaid'
     fairness(response)
+    stochastic_gradient_descent(response, 0.05)
     """
     results = compare_decision_makers(
         n_repeats=20, n_folds=5, response=response, interest_rate=0.05)
