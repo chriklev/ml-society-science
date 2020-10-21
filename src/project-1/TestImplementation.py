@@ -6,7 +6,9 @@ import numpy as np
 import pandas as pd
 
 
-def get_data():
+def get_raw_data():
+    """ Reads in raw data and only maps response to 0 and 1
+    """
     features = ['checking account balance', 'duration', 'credit history',
                 'purpose', 'amount', 'savings', 'employment', 'installment',
                 'marital status', 'other debtors', 'residence time',
@@ -15,18 +17,31 @@ def get_data():
 
     data_raw = pd.read_csv("../../data/credit/german.data",
                            delim_whitespace=True, names=features)
-    numeric_variables = ['duration', 'age', 'residence time',
-                         'installment', 'amount', 'persons', 'credits']
-    data = pd.DataFrame(columns=numeric_variables)
-    data[numeric_variables] = data_raw[numeric_variables]
 
     # Mapping the response to 0 and 1
-    data["repaid"] = data_raw["repaid"].map({1: 1, 2: 0})
-    # Create dummy variables for all the catagorical variables
-    not_dummy_names = numeric_variables + ["repaid"]
-    dummy_names = [x not in not_dummy_names for x in features]
-    dummies = pd.get_dummies(data_raw.iloc[:, dummy_names], drop_first=True)
-    data = data.join(dummies)
+    data_raw["repaid"] = data_raw["repaid"].map({1: 1, 2: 0})
+
+    return data_raw
+
+
+def one_hot_encode(data, columns):
+    """ One hot encodes specified columns.
+    """
+    dummies = pd.get_dummies(data.iloc[:, columns], drop_first=True)
+    data.drop(columns, axis=1, inplace=True)
+
+    return data.join(dummies)
+
+
+def get_data():
+    data = get_raw_data()
+
+    categorical_columns = ['checking account balance', 'credit history',
+                           'purpose', 'savings', 'employment', 'marital status',
+                           'other debtors', 'property', 'other installments',
+                           'housing', 'job', 'phone', 'foreign']
+    data = one_hot_encode(data, categorical_columns)
+
     return data
 
 
@@ -164,47 +179,6 @@ def compare_decision_makers(n_repeats, n_folds, response, interest_rate):
         interest_rate=interest_rate,
         n_repeats=n_repeats, n_folds=n_folds
     )
-
-
-def get_differentially_private_data(laplace_lambda, p):
-    """ Reads in the german data and applies a random mechanism
-
-    Args:
-        laplace_lambda: the lambda value to use in the laplace noise
-        p: the probability of changing a categorical value
-
-    Returns:
-        Differentially private data set.
-    """
-    features = ['checking account balance', 'duration', 'credit history',
-                'purpose', 'amount', 'savings', 'employment', 'installment',
-                'marital status', 'other debtors', 'residence time',
-                'property', 'age', 'other installments', 'housing', 'credits',
-                'job', 'persons', 'phone', 'foreign', 'repaid']
-
-    data_raw = pd.read_csv("german.data",
-                           delim_whitespace=True,
-                           names=features)
-
-    numeric_variables = ['duration', 'age', 'residence time', 'installment',
-                         'amount', 'persons', 'credits']
-    categorical_variables = set(features).difference(set(numeric_variables))
-
-    data_raw = differential_privacy.apply_random_mechanism_to_data(
-        data_raw, numeric_variables, categorical_variables, 0.3, 0.4)
-
-    data = pd.DataFrame(columns=numeric_variables)
-    data[numeric_variables] = data_raw[numeric_variables]
-
-    # Mapping the response to 0 and 1
-    data["repaid"] = data_raw["repaid"].map({1: 1, 2: 0})
-    # Create dummy variables for all the catagorical variables
-    not_dummy_names = numeric_variables + ["repaid"]
-    dummy_names = [x not in not_dummy_names for x in features]
-    dummies = pd.get_dummies(data_raw.iloc[:, dummy_names], drop_first=True)
-    data = data.join(dummies)
-
-    return data
 
 
 def compare_preformance_differential_privacy(n_repeats, n_folds, response, interest_rate):
