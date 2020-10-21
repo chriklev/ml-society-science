@@ -189,7 +189,6 @@ class Group1Banker:
         m = X['amount']
 
         e_x = p_c * m * ((1 + r) ** n - 1) + (1 - p_c) * (-m)
-        print("hallo", e_x.shape)
         return e_x
 
     def get_best_action(self, X):

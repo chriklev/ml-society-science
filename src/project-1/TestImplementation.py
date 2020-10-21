@@ -43,13 +43,16 @@ def utility_from_obs(predicted_decision, true_decision, amount, duration, intere
     Returns:
         The utility from the single observation given our action.
     """
-    if predicted_decision == 1:
-        if true_decision == 1:
-            return amount*((1 + interest_rate)**duration - 1)
-        else:
-            return -amount
-    else:
-        return 0
+    utility = np.zeros_like(true_decision)
+
+    predicted_decision_bool = predicted_decision == 1
+    ind1 = np.logical_and(predicted_decision_bool, true_decision == 1)
+    ind2 = np.logical_and(predicted_decision_bool, true_decision == 0)
+
+    utility[ind1] = amount[ind1]*((1 + interest_rate)**duration[ind1] - 1)
+    utility[ind2] = -amount[ind2]
+
+    return utility
 
 
 def utility_from_test_set(X, y, decision_maker, interest_rate):
@@ -70,18 +73,15 @@ def utility_from_test_set(X, y, decision_maker, interest_rate):
     obs_utility = np.zeros(num_obs)
     obs_amount = np.zeros_like(obs_utility)
 
-    for new_obs in range(num_obs):
-        predicted_decision = decision_maker.get_best_action(X.iloc[new_obs])
-        true_decision = y.iloc[new_obs]
+    predicted_decision = decision_maker.get_best_action(X)
 
-        amount = X['amount'].iloc[new_obs]
-        duration = X['duration'].iloc[new_obs]
+    amount = X['amount']
+    duration = X['duration']
 
-        obs_utility[new_obs] = utility_from_obs(
-            predicted_decision, true_decision, amount, duration, interest_rate)
-        obs_amount[new_obs] = amount
+    utility = utility_from_obs(
+        predicted_decision, y, amount, duration, interest_rate)
 
-    return np.sum(obs_utility), np.sum(obs_utility)/np.sum(obs_amount)
+    return np.sum(utility), np.sum(utility)/np.sum(amount)
 
 
 def repeated_cross_validation_utility(X, y, bankers, banker_names, interest_rate, n_repeats=20, n_folds=5):
