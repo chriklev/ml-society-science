@@ -460,6 +460,14 @@ def _get_gender(obs):
 
 
 def _get_priors(model):
+    """Genereates a normally distributed prior for each of the regression
+    coefficients with mean = the estimated regression coefficients.
+
+    Args:
+        model: the logistic regression model
+    Returns:
+        The priors
+    """
     priors = tfp.distributions.Normal(
         loc=[[i for i in model.coef_[0]]], scale=1)
 
