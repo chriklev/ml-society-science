@@ -37,5 +37,17 @@ def countplot():
     plt.show()
 
 
+def check_gender_significance():
+    import statsmodels.api as sm
+
+    X = TestImplementation.get_data()
+    y = X.pop("repaid")
+
+    logit_model = sm.Logit(y, X)
+    result = logit_model.fit()
+    print(result.summary2())
+
+
 if __name__ == "__main__":
-    countplot()
+    # countplot()
+    check_gender_significance()

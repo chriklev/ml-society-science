@@ -32,16 +32,16 @@ class Group1Banker:
             self._utility_epsilon = 0
 
     def _fit_model(self, X, y):
-        """Fits the model
+        """Fits the logistic model.
 
         Args:
-            X: the covariates
-            y: the response variable
+            X: Covariates
+            y: Response variable
 
         Notes:
             Using logistic regression, adapted from
-            https://scikit-learn.org/stable/modules/generated/sklearn.
-            linear_model.LogisticRegression.html
+            https://scikit-learn.org/stable/modules/generated/
+                sklearn.linear_model.LogisticRegression.html
         """
         log_reg_object = LogisticRegression(random_state=1, max_iter=2000)
         return log_reg_object.fit(X, y)
@@ -149,14 +149,13 @@ class Group1Banker:
 
     # Predict the probability of failure for a specific person with data x
     def predict_proba(self, X):
-        """Predicts the probability for [0,1] given a new observation given the
-        model.
+        """Predicts the probability for y=1 given new observations.
 
         Args:
-            x: A new, independent observation.
+            x: New, independent observations.
+
         Returns:
-            The prediction for class 1 given as the second element in the
-            probability array returned from the model.
+            The predicted probabilities for y=1.
         """
         return self.model.predict_proba(X)[:, 1]
 
@@ -175,7 +174,7 @@ class Group1Banker:
             action: Whether or not to grant the loan.
 
         Returns:
-            The expected utility of the decision maker.
+            The expected utilities of the decision maker.
         """
         if action == 0:
             return np.zeros(X.shape[0])
@@ -200,7 +199,8 @@ class Group1Banker:
         provide a type 1 error below the parameter '_max_type1_error'.
 
         Args:
-            x: New observations.
+            X: New observations.
+
         Returns:
             Best actions based on maximizing utility.
         """

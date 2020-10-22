@@ -57,23 +57,27 @@ def cv_error_epsilons(epsilon_sequence):
             X_test = data.iloc[test, :]
             y_test = X_test.pop('repaid').to_numpy()
 
+            # We need to use original amount and durantions for calculating utility
+            amount = X_test["amount"]
+            duration = X_test["duration"]
+
             X_test = apply_epsilon_DP_noise(X_test, epsilon)
             X_test = TestImplementation.one_hot_encode(X_test)
 
             banker.fit(X_train, y_train)
-            utility, _ = TestImplementation.utility_from_test_set(
-                X_test, y_test, banker, 0.05)
-            print(utility)
-            utilities[i] += utility/n_folds
+            pred_decision = banker.get_best_action(X_test)
+            utility = TestImplementation.utility_from_obs(
+                pred_decision, y_test, amount, duration, 0.05)
+            utilities[i] += np.sum(utility)/n_folds
 
     return utilities
 
 
 if __name__ == "__main__":
-    epsilon_sequence = np.linspace(20, 400, 50)
+    epsilon_sequence = np.linspace(1, 400, 200)
     cv_errors = cv_error_epsilons(epsilon_sequence)
     plt.scatter(epsilon_sequence/24, cv_errors)
-    plt.xlabel("epsilon")
-    plt.ylabel("Mean square test error")
+    plt.xlabel("epsilon/k")
+    plt.ylabel("Total utility")
     plt.savefig("img/privacy_guarantees_notlog.png")
     plt.show()

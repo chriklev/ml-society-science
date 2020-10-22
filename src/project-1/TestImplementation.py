@@ -182,131 +182,19 @@ def compare_decision_makers(n_repeats, n_folds, response, interest_rate):
     )
 
 
-def compare_preformance_differential_privacy(n_repeats, n_folds, response, interest_rate):
-    """ Compare the perfomance of the model when using the original data vs using differentially private data
-
-    Args:
-        n_repeats: number of repeats in the repeated cross validation
-        n_folds: number of folds in k-fold cv
-        response: the name of the response variable
-        interest_rate: the interest rate by month to use when calculating utility
-    """
-    g_banker = group1_banker.Group1Banker()
-    g_banker.set_interest_rate(interest_rate)
-
-    data = get_data()
-    data_private = get_differentially_private_data(0.3, 0.4)
-
-    y_normal = data.pop(response)
-    y_private = data_private.pop(response)
-
-    result_normal = repeated_cross_validation_utility(
-        X=data, y=y_normal,
-        bankers=[g_banker],
-        banker_names=["normal_data"],
-        interest_rate=interest_rate,
-        n_repeats=n_repeats, n_folds=n_folds)
-
-    result_private = repeated_cross_validation_utility(
-        X=data_private, y=y_private,
-        bankers=[g_banker],
-        banker_names=["private_data"],
-        interest_rate=interest_rate,
-        n_repeats=n_repeats, n_folds=n_folds)
-
-    return {**result_normal, **result_private}
-
-
-def compare_privacy_garantees(laplace_lambdas, p, n_repeats, n_folds, response, interest_rate):
-    """ Compare utility of models with differnt privacy guarantees.
-
-    Args:
-        laplace_lambdas: iterable with the different lambda values to use
-        p: probability of changing a categorical variable
-        n_repeats: number of repeats in the repeated cross validation
-        n_folds: number of folds in k-fold cv
-        response: the name of the response variable
-        interest_rate: the interest rate by month to use when calculating utility
-
-    Returns:
-        Dictionary on the form {string: numpy.ndarray(shape=(nrepeats, n_folds))}
-        with the results.
-    """
-    g_banker = group1_banker.Group1Banker()
-    g_banker.set_interest_rate(interest_rate)
-
-    data_frames = []
-    data_frames.append(get_data())
-    for laplace_lambda in laplace_lambdas:
-        data_frames.append(get_differentially_private_data(laplace_lambda, p))
-
-    results = {}
-    for i, data_frame in enumerate(data_frames):
-        y = data_frame.pop(response)
-
-        new_result = repeated_cross_validation_utility(
-            X=data_frame, y=y,
-            bankers=[g_banker],
-            banker_names=[f"lambda{i}"],
-            interest_rate=interest_rate,
-            n_repeats=n_repeats, n_folds=n_folds)
-
-        print(f"Done with {i}/10")
-
-        results.update(new_result)
-
-    return results
-
-
 if __name__ == "__main__":
     import time
     t0 = time.time()
     np.random.seed(1)
     response = 'repaid'
-    """
+
     results = compare_decision_makers(
         n_repeats=20, n_folds=5, response=response, interest_rate=0.05)
     for key in results:
         results[key] = results[key].flatten()
     results = pd.DataFrame(results)
+
     print(results.describe())
-    """
-    """
-    results_normal, results_private = compare_preformance_differential_privacy(
-        n_repeats=50, n_folds=5, response=response, interest_rate=0.05
-    )
-    print(np.mean(results_private["private_data_utility"]) -
-          np.mean(results_normal["normal_data_utility"]))
-    """
-    laplace_lambdas = [.1, .2, .3, .4, .5, .6, .7, .8, .9, 1.]
-    results = compare_privacy_garantees(
-        laplace_lambdas,
-        0.4, 20, 5, response, 0.05)
-
-    for key in results:
-        results[key] = results[key].flatten()
-
-    loss_in_utility = np.empty_like(laplace_lambdas)
-    avg_utility_normal = np.mean(results["lambda0_utility"])
-    i = 0
-    for key in results:
-        if "_utility" in key:
-            if i != 0:
-                loss_in_utility[i-1] = avg_utility_normal - \
-                    np.mean(results[key])
-            i += 1
-
-    print(f"minutes elapsed: {(time.time() - t0)/60}")
-
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-
-    plt.plot(laplace_lambdas, loss_in_utility)
-    plt.xlabel("lambda used in the laplace noise")
-    plt.ylabel("difference (original - privatised)")
-    plt.savefig("img/privacy_guarantees.png")
-    plt.show()
-    """
     sns.distplot(results_normal["normal_data_utility"], label="Original data")
     sns.distplot(results_private["private_data_utility"],
                  label="Differentially private data")
@@ -314,4 +202,3 @@ if __name__ == "__main__":
     plt.xlabel("Average utility over different random train/test draws")
     plt.ylabel("Density")
     plt.show()
-    """
