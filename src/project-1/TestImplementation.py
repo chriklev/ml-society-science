@@ -216,6 +216,18 @@ def _calculate_balance(df, threshold=None, upper=True):
         return bal
 
 
+def calculate_balance_ratios(df, repaid):
+    """Calculates the ratios between the actions dependent on the amounts. Will
+    check the ratio of loan  among the top 10 % of the amounts.
+
+    Args:
+        df: dataframe containing information about a, y, z and amount of loan
+            requested
+        repaid: whether or not the observation repaid
+    """
+    pass
+
+
 def repeated_cv_fairness(X, y, banker, n_repeats=10, n_folds=10):
     """Calculates various fairness metrics with a repeated k-fold cross
     validation.
@@ -236,6 +248,9 @@ def repeated_cv_fairness(X, y, banker, n_repeats=10, n_folds=10):
     total_fairness_bal = np.zeros(n_repeats*n_folds)
     total_fairness_bal_low = np.zeros(n_repeats*n_folds)
     total_fairness_bal_high = np.zeros(n_repeats*n_folds)
+    gender_balance_y0 = np.zeros(shape=(n_repeats*n_folds, 2))
+    gender_balance_y1 = np.zeros(shape=(n_repeats*n_folds, 2))
+
     t = 0
 
     for i in range(n_repeats):
@@ -297,6 +312,9 @@ def repeated_cv_fairness(X, y, banker, n_repeats=10, n_folds=10):
                 fairness_df, threshold=amount_threshold, upper=False)
             total_fairness_bal_high[t] = _calculate_balance(
                 fairness_df, threshold=amount_threshold, upper=True)
+
+            gender_balance_y0[t] = calculate_balance_ratios(fairness_df, False)
+            gender_balance_y1[t] = calculate_balance_ratios(fairness_df, True)
             t = t + 1
 
     fairness_results['tv0'] = total_var_dists_y0
