@@ -100,27 +100,23 @@ def utility_from_test_set(X, y, decision_maker, interest_rate):
     return np.sum(utility), np.sum(utility)/np.sum(amount)
 
 
-def repeated_cross_validation_utility(X, y, bankers, banker_names, interest_rate, n_repeats=20, n_folds=5):
+def repeated_cross_validation_utility(X, y, bankers, interest_rate, n_repeats=20, n_folds=5):
     """ Preforms repeated cross validation to find estimates for average utility
-    and return of investment for differnt bankers.
+    for different bankers.
 
     Args:
         X: pandas data frame with covariates
         y: pandas series with the response
         bankers: iterable with bankers implementing the fit() and get_best_action() methods.
-        banker_names: iterable with strings, containing the names of the bankers.
-            Used to seperate the results in the "results" dictionary
         interest_rate: float interest rate by month
         n_repeats: number of repeats in repeated cross validation
         n_folds: number of folds in k-fold cross validation
 
     Returns:
-        Dictionary on the form {string: numpy.ndarray(shape=(nrepeats, n_folds))}
+        numpy ndarray with shape (number of bankers, n_repeats, n_folds)
+        containing the utilities
     """
-    results = {}
-    for name in banker_names:
-        results[name + "_utility"] = np.empty(shape=(n_repeats, n_folds))
-        results[name + "_roi"] = np.empty(shape=(n_repeats, n_folds))
+    results = np.empty(shape=(len(bankers), n_repeats, n_folds))
 
     for i in range(n_repeats):
 
@@ -132,21 +128,49 @@ def repeated_cross_validation_utility(X, y, bankers, banker_names, interest_rate
             y_train = y[train_indices]
             y_test = y[test_indices]
 
-            # fit models
-            for banker in bankers:
+            for b, banker in enumerate(bankers):
                 banker.fit(X_train, y_train)
-            # find test scores
-            for banker, name in zip(bankers, banker_names):
-                util, roi = utility_from_test_set(
+
+                util, _ = utility_from_test_set(
                     X_test, y_test, banker, interest_rate)
-                results[name + "_utility"][i, j] = util
-                results[name + "_roi"][i, j] = roi
+                results[b, i, j] = util
             j += 1
     return results
 
 
-def compare_decision_makers(n_repeats, n_folds, response, interest_rate):
-    """Tests the random banker against our group1 banker.
+def compare_with_random(n_repeats, n_folds, response, interest_rate):
+    """ Tests the random banker against our group1 banker.
+
+    Args:
+        num_of_repeats: the number of tests to run
+        response: the name of the response variable
+        interest_rate: the interest rate to use when calculating utility
+    """
+
+    ## decision makers ##
+    # random banker
+    r_banker = random_banker.RandomBanker()
+    r_banker.set_interest_rate(interest_rate)
+
+    # group1 banker
+    g_banker = group1_banker.Group1Banker()
+    g_banker.set_interest_rate(interest_rate)
+
+    # get data
+    data = get_data()
+    # pop removes and returns the given column, "response" is no longer in data
+    y = data.pop(response)
+
+    return repeated_cross_validation_utility(
+        X=data, y=y,
+        bankers=[r_banker, g_banker],
+        interest_rate=interest_rate,
+        n_repeats=n_repeats, n_folds=n_folds
+    )
+
+
+def compare_conservative_banker(n_repeats, n_folds, response, interest_rate):
+    """
 
     Args:
         num_of_repeats: the number of tests to run
