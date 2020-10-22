@@ -43,6 +43,9 @@ def fairness(response, interest_rate=0.05):
     print(f"F_balance low = {np.mean(fairness_results['fair_low'])}")
     print(f"F_balance high = {np.mean(fairness_results['fair_high'])}")
 
+    print(
+        f"(male, female) ratio = {np.mean(fairness_results['gender_balance'], axis = 0)}")
+
 
 def _get_gender(obs):
     """Gets gender from observation, 1 = male and 0 = female.
@@ -77,6 +80,8 @@ def repeated_cv_fairness(X, y, banker, n_repeats=10, n_folds=10):
     total_fairness_bal = np.zeros(n_repeats*n_folds)
     total_fairness_bal_low = np.zeros(n_repeats*n_folds)
     total_fairness_bal_high = np.zeros(n_repeats*n_folds)
+    gender_balance = np.zeros(shape=(n_repeats*n_folds, 2))
+
     t = 0
 
     for i in range(n_repeats):
@@ -138,6 +143,7 @@ def repeated_cv_fairness(X, y, banker, n_repeats=10, n_folds=10):
                 fairness_df, threshold=amount_threshold, upper=False)
             total_fairness_bal_high[t] = _calculate_balance(
                 fairness_df, threshold=amount_threshold, upper=True)
+            gender_balance[t] = calculate_balance_ratios(fairness_df)
             t = t + 1
 
     fairness_results['tv0'] = total_var_dists_y0
@@ -145,6 +151,7 @@ def repeated_cv_fairness(X, y, banker, n_repeats=10, n_folds=10):
     fairness_results['fair_balance'] = total_fairness_bal
     fairness_results['fair_low'] = total_fairness_bal_low
     fairness_results['fair_high'] = total_fairness_bal_high
+    fairness_results['gender_balance'] = gender_balance
 
     return fairness_results
 
@@ -214,6 +221,23 @@ def _calculate_balance(df, threshold=None, upper=True):
                     p_a_y_z = p_a_and_y_and_z/p_y_z
                     bal += (p_a_y_z - p_a_y)**2
         return bal
+
+
+def calculate_balance_ratios(df):
+    """Calculates the ratios between the actions dependent on the amounts. Will
+    check the ratio of loan  among the top 10 % of the amounts.
+    Args:
+        df: dataframe containing information about a, y, z and amount of loan
+            requested
+    Returns:
+        The gender ratios
+    """
+    top10 = np.sort(df['am'])[-int(0.1*len(df))]
+    df = df[df['am'] >= top10]
+
+    male_ratio = len(df[(df['a'] == 1) & (df['z'] == 1)])/len(df)
+    female_ratio = len(df[(df['a'] == 1) & (df['z'] == 0)])/len(df)
+    return (male_ratio, female_ratio)
 
 
 def countplot():
