@@ -67,11 +67,10 @@ def cv_error_epsilons(epsilon_sequence):
 
 
 if __name__ == "__main__":
-    epsilon_sequence = np.power(10, np.linspace(
-        np.log10(0.001), np.log10(20), 300))
+    epsilon_sequence = np.linspace(0.01, 1000, 1000)
     cv_errors = cv_error_epsilons(epsilon_sequence)
-    plt.scatter(np.log10(epsilon_sequence), cv_errors)
-    plt.xlabel("log_10(epsilon)")
+    plt.scatter(epsilon_sequence/24, cv_errors)
+    plt.xlabel("epsilon")
     plt.ylabel("Mean square test error")
-    plt.savefig("img/privacy_guarantees")
+    plt.savefig("img/privacy_guarantees_notlog.png")
     plt.show()
