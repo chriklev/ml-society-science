@@ -10,7 +10,9 @@ import tensorflow_probability as tfp
 import tensorflow as tf
 
 
-def get_data():
+def get_raw_data():
+    """ Reads in raw data and only maps response to 0 and 1
+    """
     features = ['checking account balance', 'duration', 'credit history',
                 'purpose', 'amount', 'savings', 'employment', 'installment',
                 'marital status', 'other debtors', 'residence time',
@@ -19,18 +21,37 @@ def get_data():
 
     data_raw = pd.read_csv("../../data/credit/german.data",
                            delim_whitespace=True, names=features)
-    numeric_variables = ['duration', 'age', 'residence time',
-                         'installment', 'amount', 'persons', 'credits']
-    data = pd.DataFrame(columns=numeric_variables)
-    data[numeric_variables] = data_raw[numeric_variables]
 
     # Mapping the response to 0 and 1
-    data["repaid"] = data_raw["repaid"].map({1: 1, 2: 0})
-    # Create dummy variables for all the catagorical variables
-    not_dummy_names = numeric_variables + ["repaid"]
-    dummy_names = [x not in not_dummy_names for x in features]
-    dummies = pd.get_dummies(data_raw.iloc[:, dummy_names], drop_first=True)
-    data = data.join(dummies)
+    data_raw.loc[:, "repaid"] = data_raw["repaid"].map({1: 1, 2: 0})
+
+    categorical_columns = ['checking account balance', 'credit history',
+                           'purpose', 'savings', 'employment', 'marital status',
+                           'other debtors', 'property', 'other installments',
+                           'housing', 'job', 'phone', 'foreign', 'repaid']
+    data_raw.loc[:, categorical_columns] = data_raw[categorical_columns].apply(
+        lambda x: x.astype('category'))
+
+    return data_raw
+
+
+def one_hot_encode(data):
+    """ One hot encodes specified columns.
+    """
+    columns = ['checking account balance', 'credit history',
+               'purpose', 'savings', 'employment', 'marital status',
+               'other debtors', 'property', 'other installments',
+               'housing', 'job', 'phone', 'foreign']
+    dummies = pd.get_dummies(data[columns], drop_first=True)
+    data = data.drop(columns, axis=1)
+
+    return data.join(dummies)
+
+
+def get_data():
+    data = get_raw_data()
+    data = one_hot_encode(data)
+
     return data
 
 
@@ -47,13 +68,16 @@ def utility_from_obs(predicted_decision, true_decision, amount, duration, intere
     Returns:
         The utility from the single observation given our action.
     """
-    if predicted_decision == 1:
-        if true_decision == 1:
-            return amount*((1 + interest_rate)**duration - 1)
-        else:
-            return -amount
-    else:
-        return 0
+    utility = np.zeros_like(true_decision)
+
+    predicted_decision_bool = predicted_decision == 1
+    ind1 = np.logical_and(predicted_decision_bool, true_decision == 1)
+    ind2 = np.logical_and(predicted_decision_bool, true_decision == 0)
+
+    utility[ind1] = amount[ind1]*((1 + interest_rate)**duration[ind1] - 1)
+    utility[ind2] = -amount[ind2]
+
+    return utility
 
 
 def utility_from_test_set(X, y, decision_maker, interest_rate):
@@ -69,23 +93,15 @@ def utility_from_test_set(X, y, decision_maker, interest_rate):
         The sum of utility from the test set and the sum of utility divided by
         total amount.
     """
+    predicted_decision = decision_maker.get_best_action(X)
 
-    num_obs = len(X)
-    obs_utility = np.zeros(num_obs)
-    obs_amount = np.zeros_like(obs_utility)
+    amount = X['amount']
+    duration = X['duration']
 
-    for new_obs in range(num_obs):
-        predicted_decision = decision_maker.get_best_action(X.iloc[new_obs])
-        true_decision = y.iloc[new_obs]
+    utility = utility_from_obs(
+        predicted_decision, y, amount, duration, interest_rate)
 
-        amount = X['amount'].iloc[new_obs]
-        duration = X['duration'].iloc[new_obs]
-
-        obs_utility[new_obs] = utility_from_obs(
-            predicted_decision, true_decision, amount, duration, interest_rate)
-        obs_amount[new_obs] = amount
-
-    return np.sum(obs_utility), np.sum(obs_utility)/np.sum(obs_amount)
+    return np.sum(utility), np.sum(utility)/np.sum(amount)
 
 
 def repeated_cross_validation_utility(X, y, bankers, banker_names, interest_rate, n_repeats=20, n_folds=5):
@@ -239,15 +255,15 @@ def repeated_cv_fairness(X, y, banker, n_repeats=10, n_folds=10):
             y_obs = np.zeros(num_obs)
             z_obs = np.zeros(num_obs)
 
+            a_obs = banker.get_best_action(X_test)
+
             for new_obs in range(num_obs):
                 obs = X_test.iloc[new_obs]
 
-                a_i = banker.get_best_action(obs)
                 z_i = _get_gender(obs)
                 y_i = y_test.iloc[new_obs]
                 am_i = X.iloc[new_obs]['amount']
 
-                a_obs[new_obs] = a_i
                 y_obs[new_obs] = y_i
                 z_obs[new_obs] = z_i
                 am_obs[new_obs] = am_i
@@ -508,7 +524,7 @@ def fairness(response, interest_rate=0.05):
     g_banker.set_interest_rate(interest_rate)
 
     fairness_results = repeated_cv_fairness(
-        X, y, g_banker, n_repeats=10, n_folds=10)
+        X, y, g_banker, n_repeats=10, n_folds=5)
 
     print(f"TVD y=1 = {np.mean(fairness_results['tv1'])}")
     print(f"TVD y=0 = {np.mean(fairness_results['tv0'])}")
@@ -542,44 +558,8 @@ if __name__ == "__main__":
     for key in results:
         results[key] = results[key].flatten()
     results = pd.DataFrame(results)
+
     print(results.describe())
-    """
-    """
-    results_normal, results_private = compare_preformance_differential_privacy(
-        n_repeats=50, n_folds=5, response=response, interest_rate=0.05
-    )
-    print(np.mean(results_private["private_data_utility"]) -
-          np.mean(results_normal["normal_data_utility"]))
-    """
-    laplace_lambdas = [.1, .2, .3, .4, .5, .6, .7, .8, .9, 1.]
-    results = compare_privacy_garantees(
-        laplace_lambdas,
-        0.4, 20, 5, response, 0.05)
-
-    for key in results:
-        results[key] = results[key].flatten()
-
-    loss_in_utility = np.empty_like(laplace_lambdas)
-    avg_utility_normal = np.mean(results["lambda0_utility"])
-    i = 0
-    for key in results:
-        if "_utility" in key:
-            if i != 0:
-                loss_in_utility[i-1] = avg_utility_normal - \
-                    np.mean(results[key])
-            i += 1
-
-    print(f"minutes elapsed: {(time.time() - t0)/60}")
-
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-
-    plt.plot(laplace_lambdas, loss_in_utility)
-    plt.xlabel("lambda used in the laplace noise")
-    plt.ylabel("difference (original - privatised)")
-    plt.savefig("img/privacy_guarantees.png")
-    plt.show()
-    """
     sns.distplot(results_normal["normal_data_utility"], label="Original data")
     sns.distplot(results_private["private_data_utility"],
                  label="Differentially private data")

@@ -21,7 +21,7 @@ def transform_categorical(data, p):
     transform_indexing = rnd.choice([True, False], size=data.size, p=[p, 1-p])
     new_values = rnd.choice(np.unique(data), size=transform_indexing.sum())
     new_data = data.copy()
-    new_data[transform_indexing] = new_values
+    new_data.loc[transform_indexing] = new_values
     return new_data
 
 
