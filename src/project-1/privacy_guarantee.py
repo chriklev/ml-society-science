@@ -9,6 +9,11 @@ import seaborn as sns
 
 
 def apply_epsilon_DP_noise(data, epsilon):
+    """ Applies noise to data to make it epsilon-DP
+
+    Args:
+        data: pandas DataFrame containing all the
+    """
     dp_data = data.copy()
     numeric_variables = [
         'duration', 'age', 'residence time', 'installment',
@@ -33,7 +38,7 @@ def apply_epsilon_DP_noise(data, epsilon):
     return dp_data
 
 
-def cv_error_epsilons(epsilon_sequence):
+def utility_epsilons(epsilon_sequence, verbose=False):
     """
     """
     banker = group1_banker.Group1Banker()
@@ -46,8 +51,9 @@ def cv_error_epsilons(epsilon_sequence):
     kf = KFold(n_splits=n_folds)
     i_fold = 0
     for train, test in kf.split(data):
-        i_fold += 1
-        print(f"Started on fold {i_fold}/{n_folds}")
+        if verbose:
+            i_fold += 1
+            print(f"Started on fold {i_fold}/{n_folds}")
 
         X_train = data.iloc[train, :]
         X_train = TestImplementation.one_hot_encode(X_train)
@@ -75,8 +81,8 @@ def cv_error_epsilons(epsilon_sequence):
 
 if __name__ == "__main__":
     epsilon_sequence = np.linspace(1, 400, 200)
-    cv_errors = cv_error_epsilons(epsilon_sequence)
-    plt.scatter(epsilon_sequence/24, cv_errors)
+    utility = utility_epsilons(epsilon_sequence)
+    plt.scatter(epsilon_sequence/24, utility)
     plt.xlabel("epsilon/k")
     plt.ylabel("Total utility")
     plt.savefig("img/privacy_guarantees_notlog.png")

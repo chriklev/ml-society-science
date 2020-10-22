@@ -1,7 +1,8 @@
 import numpy as np
 
+
 class RandomBanker:
-    
+
     # Fit the model to the data.  You can use any model you like to do
     # the fit, however you should be able to predict all class
     # probabilities
@@ -28,5 +29,6 @@ class RandomBanker:
         print("Expected utility: Not implemented")
     # Return the best action. This is normally the one that maximises expected utility.
     # However, you are allowed to deviate from this if you can justify the reason.
+
     def get_best_action(self, x):
-        return np.random.choice(2,1)[0]
+        return np.random.choice(2, x.shape[0])
