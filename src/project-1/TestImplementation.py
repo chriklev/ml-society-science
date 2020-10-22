@@ -104,27 +104,23 @@ def utility_from_test_set(X, y, decision_maker, interest_rate):
     return np.sum(utility), np.sum(utility)/np.sum(amount)
 
 
-def repeated_cross_validation_utility(X, y, bankers, banker_names, interest_rate, n_repeats=20, n_folds=5):
+def repeated_cross_validation_utility(X, y, bankers, interest_rate, n_repeats=20, n_folds=5):
     """ Preforms repeated cross validation to find estimates for average utility
-    and return of investment for differnt bankers.
+    for different bankers.
 
     Args:
         X: pandas data frame with covariates
         y: pandas series with the response
         bankers: iterable with bankers implementing the fit() and get_best_action() methods.
-        banker_names: iterable with strings, containing the names of the bankers.
-            Used to seperate the results in the "results" dictionary
         interest_rate: float interest rate by month
         n_repeats: number of repeats in repeated cross validation
         n_folds: number of folds in k-fold cross validation
 
     Returns:
-        Dictionary on the form {string: numpy.ndarray(shape=(nrepeats, n_folds))}
+        numpy ndarray with shape (number of bankers, n_repeats, n_folds)
+        containing the utilities
     """
-    results = {}
-    for name in banker_names:
-        results[name + "_utility"] = np.empty(shape=(n_repeats, n_folds))
-        results[name + "_roi"] = np.empty(shape=(n_repeats, n_folds))
+    results = np.empty(shape=(len(bankers), n_repeats, n_folds))
 
     for i in range(n_repeats):
 
@@ -136,199 +132,46 @@ def repeated_cross_validation_utility(X, y, bankers, banker_names, interest_rate
             y_train = y[train_indices]
             y_test = y[test_indices]
 
-            # fit models
-            for banker in bankers:
+            for b, banker in enumerate(bankers):
                 banker.fit(X_train, y_train)
-            # find test scores
-            for banker, name in zip(bankers, banker_names):
-                util, roi = utility_from_test_set(
+
+                util, _ = utility_from_test_set(
                     X_test, y_test, banker, interest_rate)
-                results[name + "_utility"][i, j] = util
-                results[name + "_roi"][i, j] = roi
+                results[b, i, j] = util
             j += 1
     return results
 
 
-def _calculate_balance(df, threshold=None, upper=True):
-    """Calculates the probability for the balance metric using relative
-    frequency.
+def compare_with_random(n_repeats, n_folds, response, interest_rate):
+    """ Tests the random banker against our group1 banker.
 
     Args:
-        df: dataframe containing
-            a: the action taken by the algorithm
-            y: the true response
-            z: the gender of the observation
-            am: the amount of loan
-        threshold: whether or not to threshold the amount
-        upper: use upper part of threshold
-    Returns:
-        Calculated balance loss.
+        n_repeats: the number of repeated cv's
+        n_folds: number of folds in k-fold cv
+        response: the name of the response variable
+        interest_rate: float interest rate by month
     """
-    if (threshold == None):
-        N = len(df)
-        bal = 0
-        for a in range(0, 2):
-            for y in range(0, 2):
-                p_y = len(df[df['y'] == y])/N
-                p_a_and_y = len(df[(df['a'] == a) & (df['y'] == y)])/N
-                p_a_y = p_a_and_y/p_y
-                for z in range(0, 2):
-                    p_y_z = len(df[(df['y'] == y) & (df['z'] == z)])/N
-                    p_a_and_y_and_z = len(
-                        df[(df['a'] == a) & (df['y'] == y) & (df['z'] == z)])/N
-                    p_a_y_z = p_a_and_y_and_z/p_y_z
-                    bal += (p_a_y_z - p_a_y)**2
 
-        return bal
-    elif upper:
-        N = len(df['am'] > threshold)
-        bal = 0
-        for a in range(0, 2):
-            for y in range(0, 2):
-                p_y = len(df[(df['y'] == y) & (df['am'] > threshold)])/N
-                p_a_and_y = len(df[(df['a'] == a) & (
-                    df['y'] == y) & (df['am'] > threshold)])/N
-                p_a_y = p_a_and_y/p_y
-                for z in range(0, 2):
-                    p_y_z = len(df[(df['y'] == y) & (
-                        df['z'] == z) & (df['am'] > threshold)])/N
-                    p_a_and_y_and_z = len(
-                        df[(df['a'] == a) & (df['y'] == y) & (df['z'] == z) & (df['am'] > threshold)])/N
-                    p_a_y_z = p_a_and_y_and_z/p_y_z
-                    bal += (p_a_y_z - p_a_y)**2
-        return bal
-    else:
-        N = len(df['am'] <= threshold)
-        bal = 0
-        for a in range(0, 2):
-            for y in range(0, 2):
-                p_y = len(df[(df['y'] == y) & (df['am'] <= threshold)])/N
-                p_a_and_y = len(df[(df['a'] == a) & (
-                    df['y'] == y) & (df['am'] <= threshold)])/N
-                p_a_y = p_a_and_y/p_y
-                for z in range(0, 2):
-                    p_y_z = len(df[(df['y'] == y) & (df['z'] == z)
-                                   & (df['am'] <= threshold)])/N
-                    p_a_and_y_and_z = len(
-                        df[(df['a'] == a) & (df['y'] == y) & (df['z'] == z) & (df['am'] <= threshold)])/N
-                    p_a_y_z = p_a_and_y_and_z/p_y_z
-                    bal += (p_a_y_z - p_a_y)**2
-        return bal
+    ## decision makers ##
+    # random banker
+    r_banker = random_banker.RandomBanker()
+    r_banker.set_interest_rate(interest_rate)
 
+    # group1 banker
+    g_banker = group1_banker.Group1Banker()
+    g_banker.set_interest_rate(interest_rate)
 
-def calculate_balance_ratios(df):
-    """Calculates the ratios between the actions dependent on the amounts. Will
-    check the ratio of loan  among the top 10 % of the amounts.
+    # get data
+    data = get_data()
+    # pop removes and returns the given column, "response" is no longer in data
+    y = data.pop(response)
 
-    Args:
-        df: dataframe containing information about a, y, z and amount of loan
-            requested
-    Returns:
-        The gender ratios
-    """
-    top10 = np.sort(df['am'])[-int(0.1*len(df))]
-    df = df[df['am'] >= top10]
-
-    male_ratio = len(df[(df['a'] == 1) & (df['z'] == 1)])/len(df)
-    female_ratio = len(df[(df['a'] == 1) & (df['z'] == 0)])/len(df)
-    return (male_ratio, female_ratio)
-
-
-def repeated_cv_fairness(X, y, banker, n_repeats=10, n_folds=10):
-    """Calculates various fairness metrics with a repeated k-fold cross
-    validation.
-
-    Args:
-        X: covariates
-        y: response variable
-        n_repeats: repetitions of k-fold CV
-        n_folds: number of folds to use in CV
-    Returns:
-        A dictionary of the fairness results.
-    """
-    amount_threshold = np.median(X['amount'])
-
-    fairness_results = {}
-    total_var_dists_y1 = np.zeros(n_repeats*n_folds)
-    total_var_dists_y0 = np.zeros(n_repeats*n_folds)
-    total_fairness_bal = np.zeros(n_repeats*n_folds)
-    total_fairness_bal_low = np.zeros(n_repeats*n_folds)
-    total_fairness_bal_high = np.zeros(n_repeats*n_folds)
-    gender_balance = np.zeros(shape=(n_repeats*n_folds, 2))
-
-    t = 0
-
-    for i in range(n_repeats):
-        kf = KFold(n_splits=n_folds, shuffle=True)
-        for train_indices, test_indices in kf.split(X):
-            X_train = X.iloc[train_indices, :]
-            X_test = X.iloc[test_indices, :]
-            y_train = y[train_indices]
-            y_test = y[test_indices]
-
-            # fit model
-            banker.fit(X_train, y_train)
-
-            num_obs = len(X_test)
-            a_obs = np.zeros(num_obs)
-            am_obs = np.zeros(num_obs)
-            y_obs = np.zeros(num_obs)
-            z_obs = np.zeros(num_obs)
-
-            a_obs = banker.get_best_action(X_test)
-
-            for new_obs in range(num_obs):
-                obs = X_test.iloc[new_obs]
-
-                z_i = _get_gender(obs)
-                y_i = y_test.iloc[new_obs]
-                am_i = X.iloc[new_obs]['amount']
-
-                y_obs[new_obs] = y_i
-                z_obs[new_obs] = z_i
-                am_obs[new_obs] = am_i
-
-            fairness_df = pd.DataFrame(
-                {'z': list(z_obs), 'a': list(a_obs), 'y': list(y_obs), 'am': list(am_obs)})
-
-            men = fairness_df.loc[fairness_df['z'] == 1]
-            women = fairness_df.loc[fairness_df['z'] == 0]
-
-            z1_y1_a1 = len(men[(men['y'] == 1) & (
-                men['a'] == 1)])/len(men[men['y'] == 1])
-            z1_y0_a1 = len(men[(men['y'] == 0) & (
-                men['a'] == 1)]) / len(men[men['y'] == 0])
-            z0_y1_a1 = len(women[(women['y'] == 1) & (
-                women['a'] == 1)])/len(women[women['y'] == 1])
-            z0_y0_a1 = len(women[(women['y'] == 0) & (
-                women['a'] == 1)])/len(women[women['y'] == 0])
-
-            prob_m_y1 = np.array([z1_y1_a1, 1-z1_y1_a1])
-            prob_w_y1 = np.array([z0_y1_a1, 1-z0_y1_a1])
-
-            prob_m_y0 = np.array([z1_y0_a1, 1-z1_y0_a1])
-            prob_w_y0 = np.array([z0_y0_a1, 1-z0_y0_a1])
-
-            total_var_dists_y1[t] = total_variation(prob_m_y1, prob_w_y1)
-            total_var_dists_y0[t] = total_variation(prob_m_y0, prob_w_y0)
-
-            total_fairness_bal[t] = _calculate_balance(fairness_df)
-            total_fairness_bal_low[t] = _calculate_balance(
-                fairness_df, threshold=amount_threshold, upper=False)
-            total_fairness_bal_high[t] = _calculate_balance(
-                fairness_df, threshold=amount_threshold, upper=True)
-
-            gender_balance[t] = calculate_balance_ratios(fairness_df)
-            t = t + 1
-
-    fairness_results['tv0'] = total_var_dists_y0
-    fairness_results['tv1'] = total_var_dists_y1
-    fairness_results['fair_balance'] = total_fairness_bal
-    fairness_results['fair_low'] = total_fairness_bal_low
-    fairness_results['fair_high'] = total_fairness_bal_high
-    fairness_results['gender_balance'] = gender_balance
-
-    return fairness_results
+    return repeated_cross_validation_utility(
+        X=data, y=y,
+        bankers=[r_banker, g_banker],
+        interest_rate=interest_rate,
+        n_repeats=n_repeats, n_folds=n_folds
+    )
 
 
 def compare_decision_makers(n_repeats, n_folds, response, interest_rate):
@@ -362,140 +205,9 @@ def compare_decision_makers(n_repeats, n_folds, response, interest_rate):
     return repeated_cross_validation_utility(
         X=data, y=y,
         bankers=[r_banker, g_banker, c_banker],
-        banker_names=["random", "group1", "conservative"],
         interest_rate=interest_rate,
         n_repeats=n_repeats, n_folds=n_folds
     )
-
-
-def get_differentially_private_data(laplace_lambda, p):
-    """ Reads in the german data and applies a random mechanism
-
-    Args:
-        laplace_lambda: the lambda value to use in the laplace noise
-        p: the probability of changing a categorical value
-
-    Returns:
-        Differentially private data set.
-    """
-    features = ['checking account balance', 'duration', 'credit history',
-                'purpose', 'amount', 'savings', 'employment', 'installment',
-                'marital status', 'other debtors', 'residence time',
-                'property', 'age', 'other installments', 'housing', 'credits',
-                'job', 'persons', 'phone', 'foreign', 'repaid']
-
-    data_raw = pd.read_csv("german.data",
-                           delim_whitespace=True,
-                           names=features)
-
-    numeric_variables = ['duration', 'age', 'residence time', 'installment',
-                         'amount', 'persons', 'credits']
-    categorical_variables = set(features).difference(set(numeric_variables))
-
-    data_raw = differential_privacy.apply_random_mechanism_to_data(
-        data_raw, numeric_variables, categorical_variables, 0.3, 0.4)
-
-    data = pd.DataFrame(columns=numeric_variables)
-    data[numeric_variables] = data_raw[numeric_variables]
-
-    # Mapping the response to 0 and 1
-    data["repaid"] = data_raw["repaid"].map({1: 1, 2: 0})
-    # Create dummy variables for all the catagorical variables
-    not_dummy_names = numeric_variables + ["repaid"]
-    dummy_names = [x not in not_dummy_names for x in features]
-    dummies = pd.get_dummies(data_raw.iloc[:, dummy_names], drop_first=True)
-    data = data.join(dummies)
-
-    return data
-
-
-def compare_preformance_differential_privacy(n_repeats, n_folds, response, interest_rate):
-    """ Compare the perfomance of the model when using the original data vs using differentially private data
-
-    Args:
-        n_repeats: number of repeats in the repeated cross validation
-        n_folds: number of folds in k-fold cv
-        response: the name of the response variable
-        interest_rate: the interest rate by month to use when calculating utility
-    """
-    g_banker = group1_banker.Group1Banker()
-    g_banker.set_interest_rate(interest_rate)
-
-    data = get_data()
-    data_private = get_differentially_private_data(0.3, 0.4)
-
-    y_normal = data.pop(response)
-    y_private = data_private.pop(response)
-
-    result_normal = repeated_cross_validation_utility(
-        X=data, y=y_normal,
-        bankers=[g_banker],
-        banker_names=["normal_data"],
-        interest_rate=interest_rate,
-        n_repeats=n_repeats, n_folds=n_folds)
-
-    result_private = repeated_cross_validation_utility(
-        X=data_private, y=y_private,
-        bankers=[g_banker],
-        banker_names=["private_data"],
-        interest_rate=interest_rate,
-        n_repeats=n_repeats, n_folds=n_folds)
-
-    return {**result_normal, **result_private}
-
-
-def compare_privacy_garantees(laplace_lambdas, p, n_repeats, n_folds, response, interest_rate):
-    """ Compare utility of models with differnt privacy guarantees.
-
-    Args:
-        laplace_lambdas: iterable with the different lambda values to use
-        p: probability of changing a categorical variable
-        n_repeats: number of repeats in the repeated cross validation
-        n_folds: number of folds in k-fold cv
-        response: the name of the response variable
-        interest_rate: the interest rate by month to use when calculating utility
-
-    Returns:
-        Dictionary on the form {string: numpy.ndarray(shape=(nrepeats, n_folds))}
-        with the results.
-    """
-    g_banker = group1_banker.Group1Banker()
-    g_banker.set_interest_rate(interest_rate)
-
-    data_frames = []
-    data_frames.append(get_data())
-    for laplace_lambda in laplace_lambdas:
-        data_frames.append(get_differentially_private_data(laplace_lambda, p))
-
-    results = {}
-    for i, data_frame in enumerate(data_frames):
-        y = data_frame.pop(response)
-
-        new_result = repeated_cross_validation_utility(
-            X=data_frame, y=y,
-            bankers=[g_banker],
-            banker_names=[f"lambda{i}"],
-            interest_rate=interest_rate,
-            n_repeats=n_repeats, n_folds=n_folds)
-
-        print(f"Done with {i}/10")
-
-        results.update(new_result)
-
-    return results
-
-
-def _get_gender(obs):
-    """Gets gender from observation, 1 = male and 0 = female.
-    Args:
-        obs: covariates from a single observation
-    Returns:
-        1 if male, 0 if female.
-    """
-    if obs['marital status_A92'] == 1:
-        return 0
-    else:
-        return 1
 
 
 def _get_priors(model):
@@ -532,52 +244,10 @@ def _get_likelihood(model, X, y_values):
     return log_lik
 
 
-def fairness(response, interest_rate=0.05):
-    """Calculates proportion of a=1 conditional on gender (z) and response (y).
-
-    Args:
-        response: name of response variable in the data set
-        interest_rate: the interest rate to use
-    """
-    data = get_data()
-    y = data.pop(response)
-    X = data
-
-    g_banker = group1_banker.Group1Banker()
-    g_banker.set_interest_rate(interest_rate)
-
-    fairness_results = repeated_cv_fairness(
-        X, y, g_banker, n_repeats=10, n_folds=5)
-
-    print(f"TVD y=1 = {np.mean(fairness_results['tv1'])}")
-    print(f"TVD y=0 = {np.mean(fairness_results['tv0'])}")
-
-    print(f"F_balance = {np.mean(fairness_results['fair_balance'])}")
-    print(f"F_balance low = {np.mean(fairness_results['fair_low'])}")
-    print(f"F_balance high = {np.mean(fairness_results['fair_high'])}")
-
-    print(
-        f"(male, female) ratio = {np.mean(fairness_results['gender_balance'], axis = 0)}")
-
-
-def total_variation(prob1, prob2):
-    """Calculates the total variation distance by using the formula from
-    Wikipedia as referenced in the exercise text.
-
-    Args:
-        prob1: probability for a=1 for male (z=1)
-        prob2: probability for a=1 for female (z=0)
-
-    """
-    return (1/2)*np.sum(np.abs(prob1 - prob2))
-
-
 if __name__ == "__main__":
     import time
     t0 = time.time()
     np.random.seed(1)
-    response = 'repaid'
-    fairness(response)
     """
     results = compare_decision_makers(
         n_repeats=20, n_folds=5, response=response, interest_rate=0.05)
