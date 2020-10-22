@@ -11,7 +11,11 @@ import tensorflow as tf
 
 
 def get_raw_data():
-    """ Reads in raw data and only maps response to 0 and 1
+    """ Reads in raw data then maps response to 0 and 1 and parses
+    the categorical attributes to pandas.caategorical
+
+    Returns:
+        pandas DataFrame with the "raw" data
     """
     features = ['checking account balance', 'duration', 'credit history',
                 'purpose', 'amount', 'savings', 'employment', 'installment',
@@ -37,6 +41,12 @@ def get_raw_data():
 
 def one_hot_encode(data):
     """ One hot encodes specified columns.
+
+    Args:
+        data: pandas DataFrame
+
+    Returns:
+        Pandas DataFrame with the categorical attributes one hot encoded
     """
     columns = ['checking account balance', 'credit history',
                'purpose', 'savings', 'employment', 'marital status',
@@ -49,6 +59,11 @@ def one_hot_encode(data):
 
 
 def get_data():
+    """ Gets the data and applies one hot encoding
+
+    Returns:
+        Pandas DataFrame with the usable data
+    """
     data = get_raw_data()
     data = one_hot_encode(data)
 

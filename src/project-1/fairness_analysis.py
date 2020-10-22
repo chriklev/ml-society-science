@@ -46,8 +46,10 @@ def fairness(response, interest_rate=0.05):
 
 def _get_gender(obs):
     """Gets gender from observation, 1 = male and 0 = female.
+
     Args:
         obs: covariates from a single observation
+
     Returns:
         1 if male, 0 if female.
     """
@@ -66,6 +68,7 @@ def repeated_cv_fairness(X, y, banker, n_repeats=10, n_folds=10):
         y: response variable
         n_repeats: repetitions of k-fold CV
         n_folds: number of folds to use in CV
+
     Returns:
         A dictionary of the fairness results.
     """
@@ -161,6 +164,7 @@ def _calculate_balance(df, threshold=None, upper=True):
             am: the amount of loan
         threshold: whether or not to threshold the amount
         upper: use upper part of threshold
+
     Returns:
         Calculated balance loss.
     """
@@ -217,6 +221,8 @@ def _calculate_balance(df, threshold=None, upper=True):
 
 
 def countplot():
+    """ Create count plot to visualize gender fairness
+    """
     # Get data
     X = TestImplementation.get_data()
     y = X.pop("repaid")
@@ -248,6 +254,8 @@ def countplot():
 
 
 def check_gender_significance():
+    """ Uses statsmodels to find statistics for the logistic model.
+    """
     import statsmodels.api as sm
 
     X = TestImplementation.get_data()

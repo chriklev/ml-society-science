@@ -12,7 +12,11 @@ def apply_epsilon_DP_noise(data, epsilon):
     """ Applies noise to data to make it epsilon-DP
 
     Args:
-        data: pandas DataFrame containing all the
+        data: pandas DataFrame containing all the data
+        epsilon: float value for epsilon
+
+    Returns:
+        pandas DataFrame with epsilon-DP version of data
     """
     dp_data = data.copy()
     numeric_variables = [
@@ -39,7 +43,16 @@ def apply_epsilon_DP_noise(data, epsilon):
 
 
 def utility_epsilons(epsilon_sequence, verbose=False):
-    """
+    """ Finds total utility of the group1_banker with epsilon-DF data for different values of epsilon
+    with 5-fold cv.
+
+    Args:
+        epsilon_sequence: iterable with the values for epsilon
+        verbose: If True tells you when it starts on a new fold.
+            Defaults to False.
+
+    Returns:
+        np array with the utility values averaged over the cv folds
     """
     banker = group1_banker.Group1Banker()
     banker.set_interest_rate(0.05)
