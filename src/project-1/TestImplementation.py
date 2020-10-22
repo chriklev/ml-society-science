@@ -89,11 +89,6 @@ def utility_from_test_set(X, y, decision_maker, interest_rate):
         The sum of utility from the test set and the sum of utility divided by
         total amount.
     """
-
-    num_obs = len(X)
-    obs_utility = np.zeros(num_obs)
-    obs_amount = np.zeros_like(obs_utility)
-
     predicted_decision = decision_maker.get_best_action(X)
 
     amount = X['amount']

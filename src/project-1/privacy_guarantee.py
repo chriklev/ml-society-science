@@ -41,10 +41,13 @@ def cv_error_epsilons(epsilon_sequence):
 
     data = TestImplementation.get_raw_data()
 
-    cv_errors = np.zeros_like(epsilon_sequence)
+    utilities = np.zeros_like(epsilon_sequence)
     n_folds = 5
     kf = KFold(n_splits=n_folds)
+    i_fold = 0
     for train, test in kf.split(data):
+        i_fold += 1
+        print(f"Started on fold {i_fold}/{n_folds}")
 
         X_train = data.iloc[train, :]
         X_train = TestImplementation.one_hot_encode(X_train)
@@ -58,16 +61,16 @@ def cv_error_epsilons(epsilon_sequence):
             X_test = TestImplementation.one_hot_encode(X_test)
 
             banker.fit(X_train, y_train)
-            y_pred = banker.get_best_action(X_test)
-            mse = np.mean((y_pred - y_test)**2)
-            cv_errors[i] += mse/n_folds
-        print("Done with a fold")
+            utility, _ = TestImplementation.utility_from_test_set(
+                X_test, y_test, banker, 0.05)
+            print(utility)
+            utilities[i] += utility/n_folds
 
-    return cv_errors
+    return utilities
 
 
 if __name__ == "__main__":
-    epsilon_sequence = np.linspace(0.01, 1000, 1000)
+    epsilon_sequence = np.linspace(20, 400, 50)
     cv_errors = cv_error_epsilons(epsilon_sequence)
     plt.scatter(epsilon_sequence/24, cv_errors)
     plt.xlabel("epsilon")
