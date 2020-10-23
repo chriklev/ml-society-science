@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from sklearn.model_selection import KFold
+from sklearn.model_selection import train_test_split
 import tensorflow as tf
 
 
@@ -306,6 +307,59 @@ def countplot():
     plt.show()
 
 
+def confusion_matrix(response="repaid", interest_rate=0.05):
+    data = TestImplementation.get_data()
+    y = data.pop(response)
+    X = data
+
+    g_banker = group1_banker.Group1Banker()
+    g_banker.set_interest_rate(interest_rate)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, random_state=1, test_size=0.25)
+
+    g_banker.fit(X_train, y_train)
+
+    num_obs = len(X_test)
+    a = g_banker.get_best_action(X_test)
+    y = np.zeros(num_obs)
+    z = np.zeros(num_obs)
+
+    for new_obs in range(num_obs):
+        obs = X_test.iloc[new_obs]
+        z_i = _get_gender(obs)
+        y_i = y_test.iloc[new_obs]
+
+        y[new_obs] = y_i
+        z[new_obs] = z_i
+
+    fairness_df = pd.DataFrame({'z': list(z), 'a': list(a), 'y': list(y)})
+    men = fairness_df.loc[fairness_df['z'] == 1]
+    women = fairness_df.loc[fairness_df['z'] == 0]
+
+    tp_male = len(men[(men['a'] == 1) & (men['y'] == 1)]) / \
+        len(men[men['y'] == 1])
+    fp_male = len(men[(men['a'] == 1) & (men['y'] == 0)]) / \
+        len(men[men['y'] == 0])
+    tn_male = len(men[(men['a'] == 0) & (men['y'] == 0)]) / \
+        len(men[men['y'] == 0])
+    fn_male = len(men[(men['a'] == 0) & (men['y'] == 1)]) / \
+        len(men[men['y'] == 1])
+
+    print(tp_male, fp_male, tn_male, fn_male)
+
+    tp_female = len(women[(women['a'] == 1) & (women['y'] == 1)]) / \
+        len(women[women['y'] == 1])
+    fp_female = len(women[(women['a'] == 1) & (women['y'] == 0)]) / \
+        len(women[women['y'] == 0])
+    tn_female = len(women[(women['a'] == 0) & (women['y'] == 0)]) / \
+        len(women[women['y'] == 0])
+    fn_female = len(women[(women['a'] == 0) & (women['y'] == 1)]) / \
+        len(women[women['y'] == 1])
+
+    print(tp_female, fp_female, tn_female, fn_female)
+
+
 def check_gender_significance():
     import statsmodels.api as sm
 
@@ -322,4 +376,5 @@ if __name__ == "__main__":
     # check_gender_significance()
     np.random.seed(1)
     response = 'repaid'
-    fairness(response)
+    # fairness(response)
+    confusion_matrix()
