@@ -71,17 +71,17 @@ def get_data():
 
 
 def utility_from_obs(predicted_decision, true_decision, amount, duration, interest_rate):
-    """Calculates utility from a single observation.
+    """Calculates utility for predicted decisions
 
     Args:
-        predicted_decision: the model's best action
-        true_decision: if the observation repaid or not
-        amount: the lending amount
+        predicted_decision: the model's best actions
+        true_decision: if the observations repaid or not
+        amount: the lending amounts
         duration: the number of periods
         interest_rate: the interest rate of the loan
 
     Returns:
-        The utility from the single observation given our action.
+        numpy array with the utilities for each decision.
     """
     utility = np.zeros_like(true_decision)
 
@@ -165,6 +165,10 @@ def compare_with_random(n_repeats, n_folds, response, interest_rate):
         n_folds: number of folds in k-fold cv
         response: the name of the response variable
         interest_rate: float interest rate by month
+
+    Returns:
+        numpy ndarray with shape (number of bankers, n_repeats, n_folds)
+        containing the utilities
     """
 
     ## decision makers ##
