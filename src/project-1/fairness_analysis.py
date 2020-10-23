@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from sklearn.model_selection import KFold
+import tensorflow as tf
 
 
 def total_variation(prob1, prob2):
@@ -17,6 +18,40 @@ def total_variation(prob1, prob2):
 
     """
     return (1/2)*np.sum(np.abs(prob1 - prob2))
+
+
+def utility(a, y, pi):
+    """Calculates the identity utility function.
+
+    Args:
+        a: the action taken by the policy
+        y: the true response
+        pi: the probability for action
+    """
+    util = 0
+    for y_i in range(len(y)):
+        for a_i in range(len(a)):
+            util += pi*1 + (1-pi)*0
+    return util
+
+
+def stochastic_gradient():
+    """Start of stochastic gradient descent for maximizing method.
+
+    """
+    data = TestImplementation.get_data()
+    y = data.pop(response)
+    X = data
+
+    sgd_opt = tf.optimizers.SGD(learning_rate=0.2)
+
+    betas = tf.Variable(np.zeros(len(X.iloc[0])))
+
+    x = X.iloc[1].to_numpy()
+
+    with tf.GradientTape() as tape:
+        pi = tf.math.exp(tf.transpose(betas)*x) / \
+            (tf.math.exp(tf.transpose(betas)*x) + 1)
 
 
 def fairness(response, interest_rate=0.05):
@@ -284,7 +319,7 @@ def check_gender_significance():
 
 if __name__ == "__main__":
     # countplot()
-    check_gender_significance()
+    # check_gender_significance()
     np.random.seed(1)
     response = 'repaid'
     fairness(response)
