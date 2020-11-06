@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
 from sklearn.feature_selection import RFECV
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import log_loss
 
 
 class MedicalData:
@@ -32,7 +33,6 @@ class MedicalData:
 
         self.x_train, self.x_test, self.y_train, self.y_test, self.a_train, self.a_test = train_test_split(
             x, y, a, test_size=0.3, random_state=1)
-        # breakpoint()
 
     def data_analysis(self):
         """
@@ -165,31 +165,164 @@ class MedicalData:
 
         return u/num_at
 
-    def hierarchical_model(self, symptom):
+    def hierarchical_model(self, data, symptom):
         """Calculates the hierarchical model for the medical data.
 
         Args:
+            data: the data to calculate the posterior probability
             symptom: which symptom to use as response variable
-        """
-        x = self.x_train.iloc[:, : -2]
-        if symptom == 1:
-            symptom = self.x_train.iloc[:, -2]
-        else:
-            symptom = self.x_train.iloc[:, -1]
 
-        mu = list()
+        Returns:
+            Posterior probabilites in a Pandas dataframe.
+        """
+        x = data.iloc[:, : -2]
+        if symptom == 1:
+            symptom = data.iloc[:, -2]
+        else:
+            symptom = data.iloc[:, -1]
+
         num_models = len(x.iloc[0])
+        log_likelihoods = np.zeros(num_models + 1)
         model = LogisticRegression(max_iter=500)
 
         for i in range(0, num_models + 1):
             if i != num_models:
                 single_column = x.iloc[:, i].to_numpy()
                 single_covariate = single_column.reshape(-1, 1)
-                mu.append(model.fit(single_covariate, symptom))
+                log_reg = model.fit(single_covariate, symptom)
+                p_t = log_reg.predict_proba(single_covariate)
+                log_likelihoods[i] = -log_loss(symptom, p_t)
             else:
-                mu.append(model.fit(x, symptom))
+                log_reg = model.fit(x, symptom)
+                p_t = log_reg.predict_proba(x)
+                log_likelihoods[i] = -log_loss(symptom, p_t)
 
-        breakpoint()
+        # calculating the posterior
+        likelihood = np.exp(log_likelihoods)
+        prior = np.repeat(1/(num_models + 1), num_models + 1)
+        p_y = np.sum(likelihood*prior)
+        posterior = (likelihood*prior)/p_y
+
+        # constructing the dataframe
+        last_index = pd.Index(data=["all"])
+        model_names = x.columns.append(last_index)
+        posterior_df = pd.DataFrame(data=posterior, index=model_names)
+        posterior_df.columns = ["posterior"]
+
+        return posterior_df
+
+    def _calculate_posterior(self, xtrain, xtest, ytrain, ytest):
+        """Calculates the posterior of a test set using a model fitted on 
+        training data.
+
+        Args:
+            xtrain: training covariates
+            xtest: test covariates
+            ytrain: training response
+            ytest: test response
+
+        Returns:
+            The posterior probability of the different models.
+        """
+        num_models = len(xtrain.iloc[0])
+        log_likelihoods = np.zeros(num_models + 1)
+
+        model = LogisticRegression(max_iter=500)
+
+        for i in range(0, num_models + 1):
+            if i != num_models:
+                single_column = xtrain.iloc[:, i].to_numpy()
+                single_covariate = single_column.reshape(-1, 1)
+                log_reg = model.fit(single_covariate, ytrain)
+
+                single_column_test = xtest.iloc[:, i].to_numpy()
+                single_covariate_test = single_column_test.reshape(-1, 1)
+                p_t = log_reg.predict_proba(single_covariate_test)
+
+                log_likelihoods[i] = -log_loss(ytest, p_t)
+            else:
+                log_reg = model.fit(xtrain, ytrain)
+
+                p_t = log_reg.predict_proba(xtest)
+                log_likelihoods[i] = -log_loss(ytest, p_t)
+
+        likelihood = np.exp(log_likelihoods)
+        prior = np.repeat(1/(num_models + 1), num_models + 1)
+        p_y = np.sum(likelihood*prior)
+        posterior = (likelihood*prior)/p_y
+
+        return posterior
+
+    def hierarchical_model_cv(self, symptom, k):
+        """Calculates the hierarchical model for the medical data.
+
+        Args:
+            symptom: which symptom to use as response variable
+            k: the number of folds to use in the cross-validation
+
+        Returns:
+            Posterior probabilites in a Pandas dataframe.
+        """
+
+        num_models = len(self.x_train.iloc[0]) - 1
+        # (folds, models)
+        cv_posterior = np.zeros((k, num_models))
+
+        x_joined = [self.x_train, self.x_test]
+        x_raw = pd.concat(x_joined)
+        x = x_raw.iloc[:, : -2]
+
+        if symptom == 1:
+            y = x.iloc[:, -2]
+        else:
+            y = x.iloc[:, -1]
+
+        kf = KFold(n_splits=k, shuffle=True)
+        k_counter = 0
+
+        for train_indices, test_indices in kf.split(x):
+            xtrain = x.iloc[train_indices, :]
+            ytrain = y[train_indices]
+            xtest = x.iloc[test_indices, :]
+            ytest = y[test_indices]
+
+            posterior = self._calculate_posterior(xtrain, xtest, ytrain, ytest)
+            cv_posterior[k_counter, :] = posterior
+            k_counter += 1
+
+        posterior = np.mean(cv_posterior, 0)
+
+        # constructing the dataframe
+        last_index = pd.Index(data=["all"])
+        model_names = x.columns.append(last_index)
+        posterior_df = pd.DataFrame(data=posterior, index=model_names)
+        posterior_df.columns = ["posterior"]
+
+        return posterior_df
+
+
+def plot_posteriors(posteriors, num, title, show=True):
+    """Plots the top k posterios.
+
+    Args:
+        posteriors: sorted Pandas dataframe with posteriors
+        num: the number of posteriors to plot
+        title: title of the histogram
+        show: whether or not to show the plot
+    """
+    plot_posteriors = posteriors.sort_values(
+        by="posterior", ascending=False)[:num]
+
+    plot_posteriors.plot.bar()
+    plt.title(title)
+    plt.xlabel("covariates")
+    plt.ylabel("P(model | y)")
+
+    if show:
+        plt.show()
+    else:
+        filename = title.replace(" ", "_") + ".png"
+        plt.savefig("img/" + filename)
 
 
 if __name__ == "__main__":
@@ -199,4 +332,20 @@ if __name__ == "__main__":
     expected_utility_0 = data.measure_effect(0)
     print(f"E[U|a_t = 1] = {expected_utility_1}")
     print(f"E[U|a_t = 0] = {expected_utility_0}")
-    data.hierarchical_model(1)
+
+    x_joined = [data.x_train, data.x_test]
+    x = pd.concat(x_joined)
+
+    sym1_posteriors = data.hierarchical_model(x, 1)
+    plot_posteriors(sym1_posteriors, 5, "histogram for symptom 1", show=False)
+
+    sym2_posteriors = data.hierarchical_model(x, 2)
+    plot_posteriors(sym2_posteriors, 5, "histogram for symptom 2", show=False)
+
+    sym1_cv_posteriors = data.hierarchical_model_cv(1, 5)
+    plot_posteriors(sym1_cv_posteriors, 5,
+                    "histogram cv symptom 1", show=False)
+
+    sym2_cv_posteriors = data.hierarchical_model_cv(2, 5)
+    plot_posteriors(sym2_cv_posteriors, 5,
+                    "histogram cv symptom 2", show=False)
