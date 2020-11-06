@@ -140,6 +140,37 @@ class MedicalData:
 
         return self._utility(a_array, y_array, action)
 
+    def measure_effect_symptom(self, action, symptom):
+        """Calculates the measured effect of an action.
+
+        Args:
+            action: 1 for treatment and 0 for placebo
+            symptom: separate observations based on symptom
+
+        Returns:
+            The measured effect.
+        """
+        y_joined = [self.y_train, self.y_test]
+        y = pd.concat(y_joined)
+        y_array = self._to_flat_array(y)
+
+        a_joined = [self.a_train, self.a_test]
+        a = pd.concat(a_joined)
+        a_array = self._to_flat_array(a)
+
+        x_joined = [self.x_train, self.x_test]
+        x = pd.concat(x_joined)
+
+        if symptom == 1:
+            sym_idx = x.iloc[:, -2] == 1
+        else:
+            sym_idx = x.iloc[:, -1] == 1
+
+        a_cond_sym = a_array[sym_idx]
+        y_cond_sym = y_array[sym_idx]
+
+        return self._utility(a_cond_sym, y_cond_sym, action)
+
     def _to_flat_array(self, df):
 
         numpy_array = df.to_numpy()
@@ -333,9 +364,17 @@ if __name__ == "__main__":
     print(f"E[U|a_t = 1] = {expected_utility_1}")
     print(f"E[U|a_t = 0] = {expected_utility_0}")
 
+    util_sym1_a1 = data.measure_effect_symptom(1, 1)
+    util_sym2_a1 = data.measure_effect_symptom(1, 2)
+    util_sym1_a0 = data.measure_effect_symptom(0, 1)
+    util_sym2_a0 = data.measure_effect_symptom(0, 2)
+    print(f"E[U|a_t = 1, sym = 1] = {util_sym1_a1}")
+    print(f"E[U|a_t = 1, sym = 2] = {util_sym2_a1}")
+    print(f"E[U|a_t = 0, sym = 1] = {util_sym1_a0}")
+    print(f"E[U|a_t = 0, sym = 2] = {util_sym2_a0}")
+
     x_joined = [data.x_train, data.x_test]
     x = pd.concat(x_joined)
-
     sym1_posteriors = data.hierarchical_model(x, 1)
     plot_posteriors(sym1_posteriors, 5, "histogram for symptom 1", show=False)
 
