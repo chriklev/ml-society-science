@@ -165,6 +165,32 @@ class MedicalData:
 
         return u/num_at
 
+    def hierarchical_model(self, symptom):
+        """Calculates the hierarchical model for the medical data.
+
+        Args:
+            symptom: which symptom to use as response variable
+        """
+        x = self.x_train.iloc[:, : -2]
+        if symptom == 1:
+            symptom = self.x_train.iloc[:, -2]
+        else:
+            symptom = self.x_train.iloc[:, -1]
+
+        mu = list()
+        num_models = len(x.iloc[0])
+        model = LogisticRegression(max_iter=500)
+
+        for i in range(0, num_models + 1):
+            if i != num_models:
+                single_column = x.iloc[:, i].to_numpy()
+                single_covariate = single_column.reshape(-1, 1)
+                mu.append(model.fit(single_covariate, symptom))
+            else:
+                mu.append(model.fit(x, symptom))
+
+        breakpoint()
+
 
 if __name__ == "__main__":
     data = MedicalData()
@@ -173,3 +199,4 @@ if __name__ == "__main__":
     expected_utility_0 = data.measure_effect(0)
     print(f"E[U|a_t = 1] = {expected_utility_1}")
     print(f"E[U|a_t = 0] = {expected_utility_0}")
+    data.hierarchical_model(1)
