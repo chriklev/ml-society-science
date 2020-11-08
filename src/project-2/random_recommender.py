@@ -2,12 +2,12 @@
 # A simple reference recommender
 #
 #
-# This is a medical scenario with historical data. 
+# This is a medical scenario with historical data.
 #
 # General functions
 #
 # - set_reward
-# 
+#
 # There is a set of functions for dealing with historical data:
 #
 # - fit_data
@@ -23,6 +23,7 @@
 from sklearn import linear_model
 import numpy as np
 
+
 class RandomRecommender:
 
     #################################
@@ -36,14 +37,14 @@ class RandomRecommender:
         self.n_outcomes = n_outcomes
         self.reward = self._default_reward
 
-    ## By default, the reward is just equal to the outcome, as the actions play no role.
+    # By default, the reward is just equal to the outcome, as the actions play no role.
     def _default_reward(self, action, outcome):
         return outcome
 
     # Set the reward function r(a, y)
     def set_reward(self, reward):
         self.reward = reward
-    
+
     ##################################
     # Fit a model from patient data.
     #
@@ -56,25 +57,51 @@ class RandomRecommender:
         print("Preprocessing data")
         return None
 
+    # Fit a model from patient data, actions and their effects
+    # Here we assume that the outcome is a direct function of data and actions
+    # This model can then be used in estimate_utility(), predict_proba() and recommend()
 
-    ## Fit a model from patient data, actions and their effects
-    ## Here we assume that the outcome is a direct function of data and actions
-    ## This model can then be used in estimate_utility(), predict_proba() and recommend()
     def fit_treatment_outcome(self, data, actions, outcome):
         print("Fitting treatment outcomes")
         return None
 
-    ## Estimate the utility of a specific policy from historical data (data, actions, outcome),
-    ## where utility is the expected reward of the policy.
+    # Estimate the utility of a specific policy from historical data (data, actions, outcome),
+    # where utility is the expected reward of the policy.
     ##
-    ## If policy is not given, simply use the average reward of the observed actions and outcomes.
+    # If policy is not given, simply use the average reward of the observed actions and outcomes.
     ##
-    ## If a policy is given, then you can either use importance
-    ## sampling, or use the model you have fitted from historical data
-    ## to get an estimate of the utility.
+    # If a policy is given, then you can either use importance
+    # sampling, or use the model you have fitted from historical data
+    # to get an estimate of the utility.
     ##
-    ## The policy should be a recommender that implements get_action_probability()
+    # The policy should be a recommender that implements get_action_probability()
     def estimate_utility(self, data, actions, outcome, policy=None):
+        """Calculates utility based on historical data.
+
+        Args:
+            data: covariates
+            actions: the actions taken by the recommender
+            outcome: the result of the actions, y | a
+            policy: policy to use when estimating utility. If the value is None, 
+                an average utility from historical data is calculated
+
+        Returns:
+            The estimated utility.
+        """
+        if policy is None:
+            T = len(data)
+            a = actions.to_numpy()
+            y = outcome.to_numpy()
+            utility = np.empty(T)
+
+            for t in range(T):
+                if a[t] == 0:
+                    utility[t] = y[t]
+                else:
+                    utility[t] = -0.1*a[t] + y[t]
+
+            return np.mean(utility)
+
         return 0
 
     # Return a distribution of effects for a given person's data and a specific treatment.
@@ -85,14 +112,14 @@ class RandomRecommender:
     # Return a distribution of recommendations for a specific user datum
     # This should a numpy array of size equal to self.n_actions, summing up to 1
     def get_action_probabilities(self, user_data):
-        #print("Recommending")
-        return np.ones(self.n_actions) / self.n_actions;
+        # print("Recommending")
+        return np.ones(self.n_actions) / self.n_actions
 
-    
     # Return recommendations for a specific user datum
     # This should be an integer in range(self.n_actions)
+
     def recommend(self, user_data):
-        return np.random.choice(self.n_actions, p = self.get_action_probabilities(user_data))
+        return np.random.choice(self.n_actions, p=self.get_action_probabilities(user_data))
 
     # Observe the effect of an action. This is an opportunity for you
     # to refit your models, to take the new information into account.

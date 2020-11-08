@@ -388,3 +388,15 @@ if __name__ == "__main__":
     sym2_cv_posteriors = data.hierarchical_model_cv(2, 5)
     plot_posteriors(sym2_cv_posteriors, 5,
                     "histogram cv symptom 2", show=False)
+
+    # part 2
+    from random_recommender import RandomRecommender
+    rr = RandomRecommender(1, 1)
+    x_joined = [data.x_train, data.x_test]
+    x = pd.concat(x_joined)
+    a_joined = [data.a_train, data.a_test]
+    a = pd.concat(a_joined)
+    y_joined = [data.y_train, data.y_test]
+    y = pd.concat(y_joined)
+    u = rr.estimate_utility(x, a, y)
+    print(f"Average utility = {round(u, 4)}")
