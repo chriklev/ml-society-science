@@ -359,35 +359,35 @@ def plot_posteriors(posteriors, num, title, show=True):
 if __name__ == "__main__":
     data = MedicalData()
     # data.data_analysis()
-    expected_utility_1 = data.measure_effect(1)
-    expected_utility_0 = data.measure_effect(0)
-    print(f"E[U|a_t = 1] = {expected_utility_1}")
-    print(f"E[U|a_t = 0] = {expected_utility_0}")
+    # expected_utility_1 = data.measure_effect(1)
+    # expected_utility_0 = data.measure_effect(0)
+    # print(f"E[U|a_t = 1] = {expected_utility_1}")
+    # print(f"E[U|a_t = 0] = {expected_utility_0}")
 
-    util_sym1_a1 = data.measure_effect_symptom(1, 1)
-    util_sym2_a1 = data.measure_effect_symptom(1, 2)
-    util_sym1_a0 = data.measure_effect_symptom(0, 1)
-    util_sym2_a0 = data.measure_effect_symptom(0, 2)
-    print(f"E[U|a_t = 1, sym = 1] = {util_sym1_a1}")
-    print(f"E[U|a_t = 1, sym = 2] = {util_sym2_a1}")
-    print(f"E[U|a_t = 0, sym = 1] = {util_sym1_a0}")
-    print(f"E[U|a_t = 0, sym = 2] = {util_sym2_a0}")
+    # util_sym1_a1 = data.measure_effect_symptom(1, 1)
+    # util_sym2_a1 = data.measure_effect_symptom(1, 2)
+    # util_sym1_a0 = data.measure_effect_symptom(0, 1)
+    # util_sym2_a0 = data.measure_effect_symptom(0, 2)
+    # print(f"E[U|a_t = 1, sym = 1] = {util_sym1_a1}")
+    # print(f"E[U|a_t = 1, sym = 2] = {util_sym2_a1}")
+    # print(f"E[U|a_t = 0, sym = 1] = {util_sym1_a0}")
+    # print(f"E[U|a_t = 0, sym = 2] = {util_sym2_a0}")
 
-    x_joined = [data.x_train, data.x_test]
-    x = pd.concat(x_joined)
-    sym1_posteriors = data.hierarchical_model(x, 1)
-    plot_posteriors(sym1_posteriors, 5, "histogram for symptom 1", show=False)
+    # x_joined = [data.x_train, data.x_test]
+    # x = pd.concat(x_joined)
+    # sym1_posteriors = data.hierarchical_model(x, 1)
+    # plot_posteriors(sym1_posteriors, 5, "histogram for symptom 1", show=False)
 
-    sym2_posteriors = data.hierarchical_model(x, 2)
-    plot_posteriors(sym2_posteriors, 5, "histogram for symptom 2", show=False)
+    # sym2_posteriors = data.hierarchical_model(x, 2)
+    # plot_posteriors(sym2_posteriors, 5, "histogram for symptom 2", show=False)
 
-    sym1_cv_posteriors = data.hierarchical_model_cv(1, 5)
-    plot_posteriors(sym1_cv_posteriors, 5,
-                    "histogram cv symptom 1", show=False)
+    # sym1_cv_posteriors = data.hierarchical_model_cv(1, 5)
+    # plot_posteriors(sym1_cv_posteriors, 5,
+    #                 "histogram cv symptom 1", show=False)
 
-    sym2_cv_posteriors = data.hierarchical_model_cv(2, 5)
-    plot_posteriors(sym2_cv_posteriors, 5,
-                    "histogram cv symptom 2", show=False)
+    # sym2_cv_posteriors = data.hierarchical_model_cv(2, 5)
+    # plot_posteriors(sym2_cv_posteriors, 5,
+    #                 "histogram cv symptom 2", show=False)
 
     # part 2
     from random_recommender import RandomRecommender
@@ -398,5 +398,15 @@ if __name__ == "__main__":
     a = pd.concat(a_joined)
     y_joined = [data.y_train, data.y_test]
     y = pd.concat(y_joined)
-    u = rr.estimate_utility(x, a, y)
-    print(f"Average utility = {round(u, 4)}")
+    ur = rr.estimate_utility(x, a, y)
+    print(f"Average utility = {round(ur, 4)}")
+
+    from historical_recommender import HistoricalRecommender
+    hr = HistoricalRecommender(1, 1)
+    uh = hr.estimate_utility(x, a, y)
+    print(f"Average utility = {round(uh, 4)}")
+
+    from HistoricalPolicy import HistoricalPolicy
+    hp = HistoricalPolicy(2, 2, a, y)
+    hp.sample(10)
+    #hr.estimate_utility(x, a, y, hp)
