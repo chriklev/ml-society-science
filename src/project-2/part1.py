@@ -408,6 +408,6 @@ if __name__ == "__main__":
 
     from HistoricalPolicy import HistoricalPolicy
     hp = HistoricalPolicy(2, 2, a, y)
-    hp.method0(30, 80)
+    hp.method0(100, 100, 5, 0.05)
 
     #hr.estimate_utility(x, a, y, hp)

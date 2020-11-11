@@ -54,13 +54,52 @@ class HistoricalPolicy:
         """
         tfd = tfp.distributions
 
+        def find_probs(a):
+            probs = np.zeros(len(a.shape))
+            print(type(a))
+            for i in range(len(a.shape)):
+                print(f"type{type(a[i])}")
+                print(f"len{a[i].shape}")
+                print(f"{tf.cast(a[i], tf.int32)}")
+                probs[i] = self.theta_hat[int(tf.cast(a[i], tf.int32))]
+            return probs
+
         model = tfd.JointDistributionNamedAutoBatched({
-            'a': tfd.Independent(
-                tfd.Bernoulli(probs=self.pi0_hat[1])),
-            'y': lambda a:
+            'a':
             tfd.Independent(
-                tfd.Bernoulli(probs=self.theta_hat[a]))
+                tfd.Bernoulli(
+                    probs=self.pi0_hat[1][..., tf.newaxis]), reinterpreted_batch_ndims=1
+            ),
+            'y': lambda a:
+                tfd.Independent(tfd.Bernoulli(
+                    probs=find_probs(a)), reinterpreted_batch_ndims=1)
         })
+
+        # def log_prob(a):
+        #     return model.log_prob({'a': a, 'y': tfd.Bernoulli(probs=self.theta_hat[a])})
+
+        # num_res = 100
+        # num_burnin = 100
+        # num_chains = 4
+        # breakpoint()
+
+        # @ tf.function
+        # def sample(num_res, num_burnin, num_chains):
+        #     first_sample = model.sample(num_chains)
+        #     kernel = tfp.mcmc.HamiltonianMonteCarlo(
+        #         target_log_prob_fn=log_prob,
+        #         num_leapfrog_steps=4,
+        #         step_size=0.2
+        #     )
+        #     states = tfp.mcmc.sample_chain(
+        #         kernel=kernel,
+        #         num_burnin_steps=num_burnin,
+        #         num_results=num_res,
+        #         current_state=[first_sample['a']]
+        #     )
+        #     return states
+
+        # test = sample(num_res, num_burnin, num_chains)
 
         samples = [model.sample() for _ in range(n_samples)]
 
@@ -79,7 +118,7 @@ class HistoricalPolicy:
         """
 
         # number of sample observations
-        #n = len(self.actions)
+        # n = len(self.actions)
 
         # expected utilities
         expected_U = np.empty(shape=(rep, n))
@@ -112,7 +151,7 @@ class HistoricalPolicy:
         """
         return -0.1*a + y
 
-    def method0(self, rep, n):
+    def method0(self, rep, n, repeats, alpha):
         """Calculates expected utility and error bounds related to model 0.
 
         NOTE: this method is adapted from https://github.com/dhesse/IN-STK5000
@@ -122,17 +161,75 @@ class HistoricalPolicy:
         Args:
             rep: number of repitions to use
             n: number of samples in each repetition
+            repeats: number of confidence intervals
+            alpha: confidence level
         """
-        expected_utilities = self.estimate_expected_utility(rep, n)
+        repetitions = np.zeros(repeats)
+        percentile_ci = np.zeros(shape=(2, repeats))
 
-        confidence_interval = np.percentile(
-            expected_utilities, [2.5, 97.5], axis=1)
-        mean = np.mean(expected_utilities, axis=1)
+        sample_means = np.zeros(shape=(repeats, rep))
 
-        plt.errorbar(mean, range(len(mean)), xerr=(
-            mean - confidence_interval[0], confidence_interval[1] - mean), marker='o', ls="")
-        # plt.show()
-        plt.savefig("img/part2_1_method0.png")
+        mean_values = list()
+
+        lower_ci = int(round(np.ceil((alpha*(rep+1)/2))))
+        upper_ci = rep - lower_ci
+        middle_idx = round(rep/2)
+
+        for i in range(repeats):
+            expected_utilities = self.estimate_expected_utility(rep, n)
+            mean = np.mean(expected_utilities, axis=1)
+
+            sorted_mean = np.sort(mean)
+            repetitions[i] = sorted_mean[middle_idx]
+            percentile_ci[0, i] = sorted_mean[lower_ci]
+            percentile_ci[1, i] = sorted_mean[upper_ci]
+
+            mean_values.extend(mean)
+            sample_means[i, ] = mean
+
+        # self.plot_percentile_interval(repetitions, percentile_ci, rep)
+        # self.plot_expected_frequency(mean_values, rep)
+        self.bootstrap_ci(sample_means, alpha)
+
+    def bootstrap_ci(self, sample_means):
+        """Calculates bootstrap ci from sample means
+
+        Args:
+            sample_means: the sample means of the expected utility
+        """
+        n_repeats = len(sample_means)
+        n_b = len(sample_means[0])
+        means = np.mean(sample_means, axis=1)
+        empirical_var = np.zeros(n_repeats)
+        boot_mean = np.mean(means)
+
+        for rep in range(n_repeats):
+            empirical_var[rep] = np.sum((means[rep] - boot_mean)**2)/(n_b - 1)
+
+        plt.clf()
+        plt.errorbar(means, range(len(means)), xerr=1.96 *
+                     np.sqrt(empirical_var), marker='o', ls="")
+        plt.title("Bootstrap CI")
+        plt.xlabel("E[U]")
+        plt.ylabel("samples")
+        plt.savefig("img/part2_1_method0_bootci.png")
+
+    def plot_percentile_interval(self, repetitions, percentile_ci, rep):
+
+        plt.errorbar(repetitions, range(len(repetitions)), xerr=(
+            repetitions - percentile_ci[0], percentile_ci[1] - repetitions), marker='o', ls="")
+        plt.title(f"Error bounds for expected utility ({rep} samples)")
+        plt.xlabel("E[U]")
+        plt.ylabel("samples")
+        plt.savefig("img/part2_1_method0_error.png")
+        plt.clf()
+
+    def plot_expected_frequency(self, mean_values, rep):
+        plt.hist(mean_values)
+        plt.xlabel("E[U]")
+        plt.ylabel("frequency")
+        plt.title(f"Histogram of expected values ({rep} samples)")
+        plt.savefig("img/part2_1_method0_hist.png")
 
     def get_action_probabilities(self):
         """Gets the probabilities for the different actions.
