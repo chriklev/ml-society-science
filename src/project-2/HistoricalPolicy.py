@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow_probability as tfp
 import tensorflow as tf
+import pandas as pd
 
 
 class HistoricalPolicy:
@@ -20,7 +21,9 @@ class HistoricalPolicy:
         Args:
             actions: historical actions
         """
-        self.pi0_hat = np.sum(actions.to_numpy())/len(actions)
+        pi0_hat_a1 = np.sum(actions.to_numpy())/len(actions)
+        pi0_hat_a0 = 1 - pi0_hat_a1
+        self.pi0_hat = (pi0_hat_a0, pi0_hat_a1)
 
     def _calculate_theta(self, actions, outcomes):
         """Calculates theta_a_hat from the actions and the outcomes.
@@ -52,7 +55,7 @@ class HistoricalPolicy:
 
         model = tfd.JointDistributionNamedAutoBatched({
             'a': tfd.Independent(
-                tfd.Bernoulli(probs=self.pi0_hat)),
+                tfd.Bernoulli(probs=self.pi0_hat[1])),
             'y': lambda a:
             tfd.Independent(
                 tfd.Bernoulli(probs=self.theta_hat[a]))
@@ -62,8 +65,58 @@ class HistoricalPolicy:
 
         a_samples = [samples[_]['a'].numpy() for _ in range(len(samples))]
         y_samples = [samples[_]['y'].numpy() for _ in range(len(samples))]
-        breakpoint()
-        pass
+
+        df = pd.DataFrame({'actions': a_samples, 'outcomes': y_samples})
+        return df
+
+    def estimate_expected_utility(self, rep):
+        """Calculates the expected utility.
+
+        Args:
+            rep: number of repetitions
+        """
+        # number of observations
+        n = len(self.actions)
+
+        # expected utilities
+        expected_U = np.empty(rep)
+
+        for r in range(rep):
+            # store expected utility for each observation
+            expected_utility = np.zeros(n)
+
+            # sample data from model 0
+            sample_data = self.sample(n)
+
+            actions = sample_data['actions']
+            outcomes = sample_data['outcomes']
+
+            for i in range(n):
+                expected_utility[i] = self.u(actions[i], outcomes[i])
+
+            expected_U[r] = np.mean(expected_utility)
+
+        return expected_U
+
+    def u(self, a, y):
+        """Calculates utility.
+
+        Args:
+            a: action
+            y: outcome
+        Returns:
+            The utility
+        """
+        return -0.1*a + y
+
+    def method0(self, rep):
+        """Calculates expected utility and error bounds related to model 0.
+
+        Args:
+            rep: number of repitions to use
+        """
+
+        expected_utilities = self.estimate_expected_utility(rep)
 
     def get_action_probabilities(self):
         """Gets the probabilities for the different actions.

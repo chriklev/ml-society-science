@@ -89,7 +89,7 @@ class HistoricalRecommender:
             The estimated utility.
         """
         if policy is None:
-            T = len(data)
+            T = len(actions)
             a = actions.to_numpy()
             y = outcome.to_numpy()
             utility = np.empty(T)
