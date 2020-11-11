@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow_probability as tfp
 import tensorflow as tf
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 class HistoricalPolicy:
@@ -69,17 +70,19 @@ class HistoricalPolicy:
         df = pd.DataFrame({'actions': a_samples, 'outcomes': y_samples})
         return df
 
-    def estimate_expected_utility(self, rep):
+    def estimate_expected_utility(self, rep, n):
         """Calculates the expected utility.
 
         Args:
             rep: number of repetitions
+            n: number of observations to sample
         """
-        # number of observations
-        n = len(self.actions)
+
+        # number of sample observations
+        #n = len(self.actions)
 
         # expected utilities
-        expected_U = np.empty(rep)
+        expected_U = np.empty(shape=(rep, n))
 
         for r in range(rep):
             # store expected utility for each observation
@@ -94,7 +97,7 @@ class HistoricalPolicy:
             for i in range(n):
                 expected_utility[i] = self.u(actions[i], outcomes[i])
 
-            expected_U[r] = np.mean(expected_utility)
+            expected_U[r, :] = expected_utility
 
         return expected_U
 
@@ -109,14 +112,27 @@ class HistoricalPolicy:
         """
         return -0.1*a + y
 
-    def method0(self, rep):
+    def method0(self, rep, n):
         """Calculates expected utility and error bounds related to model 0.
+
+        NOTE: this method is adapted from https://github.com/dhesse/IN-STK5000
+        -Notebooks-2020/blob/master/notebooks/Lecture%2010%20-%20Multilevel%20
+        Models.ipynb
 
         Args:
             rep: number of repitions to use
+            n: number of samples in each repetition
         """
+        expected_utilities = self.estimate_expected_utility(rep, n)
 
-        expected_utilities = self.estimate_expected_utility(rep)
+        confidence_interval = np.percentile(
+            expected_utilities, [2.5, 97.5], axis=1)
+        mean = np.mean(expected_utilities, axis=1)
+
+        plt.errorbar(mean, range(len(mean)), xerr=(
+            mean - confidence_interval[0], confidence_interval[1] - mean), marker='o', ls="")
+        # plt.show()
+        plt.savefig("img/part2_1_method0.png")
 
     def get_action_probabilities(self):
         """Gets the probabilities for the different actions.

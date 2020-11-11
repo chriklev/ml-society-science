@@ -408,7 +408,6 @@ if __name__ == "__main__":
 
     from HistoricalPolicy import HistoricalPolicy
     hp = HistoricalPolicy(2, 2, a, y)
-    samples = hp.sample(10)
-    res = hp.estimate_expected_utility(4)
+    hp.method0(30, 80)
 
     #hr.estimate_utility(x, a, y, hp)
