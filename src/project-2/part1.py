@@ -411,3 +411,6 @@ if __name__ == "__main__":
     hp.method0(100, 100, 5, 0.05)
 
     #hr.estimate_utility(x, a, y, hp)
+    print(f"pi0_hat = {hp.pi0_hat}")
+    print(f"theta_0 = {hp.theta_hat[0]}")
+    print(f"theta_1 = {hp.theta_hat[1]}")

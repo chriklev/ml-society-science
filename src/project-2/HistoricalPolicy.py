@@ -46,6 +46,10 @@ class HistoricalPolicy:
     def sample(self, n_samples):
         """Samples from the historical policy pi0.
 
+        Sampling methods adapted from https://github.com/dhesse/IN-STK5000-
+        Notebooks-2020/blob/master/notebooks/Lecture%2010%20-%20Multilevel%
+        20Models.ipynb
+
         Args:
             n_samples: the number of samples
 
@@ -55,16 +59,12 @@ class HistoricalPolicy:
         tfd = tfp.distributions
 
         def find_probs(a):
-            probs = np.zeros(len(a.shape))
-            print(type(a))
-            for i in range(len(a.shape)):
-                print(f"type{type(a[i])}")
-                print(f"len{a[i].shape}")
-                print(f"{tf.cast(a[i], tf.int32)}")
+            probs = np.zeros(a.shape[0])
+            for i in range(a.shape[0]):
                 probs[i] = self.theta_hat[int(tf.cast(a[i], tf.int32))]
             return probs
 
-        model = tfd.JointDistributionNamedAutoBatched({
+        model = tfd.JointDistributionNamed({
             'a':
             tfd.Independent(
                 tfd.Bernoulli(
@@ -75,37 +75,13 @@ class HistoricalPolicy:
                     probs=find_probs(a)), reinterpreted_batch_ndims=1)
         })
 
-        # def log_prob(a):
-        #     return model.log_prob({'a': a, 'y': tfd.Bernoulli(probs=self.theta_hat[a])})
+        # samples = [model.sample() for _ in range(n_samples)]
+        # a_samples = [samples[_]['a'].numpy() for _ in range(len(samples))]
+        # y_samples = [samples[_]['y'].numpy() for _ in range(len(samples))]
 
-        # num_res = 100
-        # num_burnin = 100
-        # num_chains = 4
-        # breakpoint()
-
-        # @ tf.function
-        # def sample(num_res, num_burnin, num_chains):
-        #     first_sample = model.sample(num_chains)
-        #     kernel = tfp.mcmc.HamiltonianMonteCarlo(
-        #         target_log_prob_fn=log_prob,
-        #         num_leapfrog_steps=4,
-        #         step_size=0.2
-        #     )
-        #     states = tfp.mcmc.sample_chain(
-        #         kernel=kernel,
-        #         num_burnin_steps=num_burnin,
-        #         num_results=num_res,
-        #         current_state=[first_sample['a']]
-        #     )
-        #     return states
-
-        # test = sample(num_res, num_burnin, num_chains)
-
-        samples = [model.sample() for _ in range(n_samples)]
-
-        a_samples = [samples[_]['a'].numpy() for _ in range(len(samples))]
-        y_samples = [samples[_]['y'].numpy() for _ in range(len(samples))]
-
+        samples = model.sample(n_samples)
+        a_samples = samples['a'].numpy().flatten()
+        y_samples = samples['y'].numpy().flatten()
         df = pd.DataFrame({'actions': a_samples, 'outcomes': y_samples})
         return df
 
@@ -187,15 +163,16 @@ class HistoricalPolicy:
             mean_values.extend(mean)
             sample_means[i, ] = mean
 
-        # self.plot_percentile_interval(repetitions, percentile_ci, rep)
-        # self.plot_expected_frequency(mean_values, rep)
+        self.plot_percentile_interval(repetitions, percentile_ci, rep)
+        self.plot_expected_frequency(mean_values, rep)
         self.bootstrap_ci(sample_means, alpha)
 
-    def bootstrap_ci(self, sample_means):
+    def bootstrap_ci(self, sample_means, alpha):
         """Calculates bootstrap ci from sample means
 
         Args:
             sample_means: the sample means of the expected utility
+            alpha: confidence level to use
         """
         n_repeats = len(sample_means)
         n_b = len(sample_means[0])
@@ -215,6 +192,13 @@ class HistoricalPolicy:
         plt.savefig("img/part2_1_method0_bootci.png")
 
     def plot_percentile_interval(self, repetitions, percentile_ci, rep):
+        """Plots the error bounds based on the percentile method.
+
+        Args:
+            repetitions: number of confidence intervals
+            percentile_ci: the confidence bounds
+            rep: the number of samples used in each confidence interval estimation
+        """
 
         plt.errorbar(repetitions, range(len(repetitions)), xerr=(
             repetitions - percentile_ci[0], percentile_ci[1] - repetitions), marker='o', ls="")
@@ -225,6 +209,12 @@ class HistoricalPolicy:
         plt.clf()
 
     def plot_expected_frequency(self, mean_values, rep):
+        """Plots the estimates of the expected utility in a histogram.
+
+        Args:
+            mean_values: the mean expected utilities from the sampling
+            rep: the number of samples used in each repetition
+        """
         plt.hist(mean_values)
         plt.xlabel("E[U]")
         plt.ylabel("frequency")
