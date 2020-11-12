@@ -43,6 +43,101 @@ class HistoricalPolicy:
         theta1 = np.sum(a1_y1)/len(a1)
         self.theta_hat = (theta0, theta1)
 
+    def _bootstrap(self, i):
+        """Calculates a bootstrap sample from the action and outcome datasets.
+
+        Args:
+            i: index of bootstrap loop (for reproducibility)
+
+        Returns:
+            The bootstrap samples.
+        """
+        df = pd.concat([self.actions, self.outcomes], axis=1)
+        boot = df.sample(n=len(df), replace=True, random_state=i)
+        return boot
+
+    def bootstrap_expected_utility(self, nb, j=0):
+        """Calculates the bootstrap variance from a number of bootstrap samples
+        of the expected utility.
+
+        Args:
+            nb: number of bootstrap samples
+            j: add number to random_state (if this method is used in repeated 
+            bootstrap)
+
+        Returns:
+            The expected utilities.
+        """
+        boot_expected_utility = np.empty(nb)
+
+        for i in range(nb):
+            boot_sample = self._bootstrap(i+j)
+            actions = boot_sample['action'].to_numpy()
+            outcomes = boot_sample['outcome'].to_numpy()
+            boot_expected_utility[i] = np.mean(self.u(actions, outcomes))
+
+        return boot_expected_utility
+
+    def plot_bootstrap_hist(self, boot_expected_utility, nb):
+        """Plots the bootstrap expected utilites.
+
+        Args:
+            boot_expected_utility: the expected utilities
+            nb: number of bootstrap samples
+        """
+        plt.hist(boot_expected_utility)
+        plt.title(f"{nb} bootstrap expected utilities")
+        plt.xlabel("E[U]")
+        plt.ylabel("frequency")
+        plt.savefig("img/part2_1_bootstrap_hist.png")
+
+    def bootstrap_percentile(self, nb, rep, alpha):
+        """Calculate bootstrap error bounds.
+
+        Args:
+            nb: number of bootstrap samples
+            rep: number of percentile intervals
+            alpha: confidence level
+        """
+        boot_mean = np.zeros(rep)
+        percentile_interval = np.zeros(shape=(2, rep))
+
+        lower_ci = int(round(np.ceil((alpha*(nb+1)/2))))
+        upper_ci = nb - lower_ci
+
+        for i in range(rep):
+            expected_utility = self.bootstrap_expected_utility(nb, j=i+100)
+            boot_mean[i] = np.mean(expected_utility)
+            sorted_util = np.sort(expected_utility)
+            percentile_interval[0, i] = sorted_util[lower_ci]
+            percentile_interval[1, i] = sorted_util[upper_ci]
+
+        self.plot_percentile_interval(
+            boot_mean, percentile_interval, rep, "part2_1_bootstrap_percentile_ci.png")
+
+    def plot_bootstrap_ci(self, nb, rep):
+        """Plots a number of bootstrap confidence intervals.
+
+        Args:
+            nb: number of bootstrap samples
+            rep: number of confidence intervals
+        """
+        boot_mean = np.zeros(rep)
+        empirical_var = np.zeros(rep)
+
+        for i in range(rep):
+            expected_utility = self.bootstrap_expected_utility(nb, j=i+100)
+            boot_mean[i] = np.mean(expected_utility)
+            empirical_var[i] = np.var(expected_utility)
+
+        plt.clf()
+        plt.errorbar(boot_mean, range(len(boot_mean)), xerr=1.96 *
+                     np.sqrt(empirical_var), marker='o', ls="")
+        plt.title("Bootstrap CI")
+        plt.xlabel("E[U]")
+        plt.ylabel("samples")
+        plt.savefig("img/part2_1_bootstrap_bootstrap_ci.png")
+
     def sample(self, n_samples):
         """Samples from the historical policy pi0.
 
@@ -156,23 +251,27 @@ class HistoricalPolicy:
             mean = np.mean(expected_utilities, axis=1)
 
             sorted_mean = np.sort(mean)
-            repetitions[i] = sorted_mean[middle_idx]
+
+            #repetitions[i] = sorted_mean[middle_idx]
+            repetitions[i] = np.mean(mean)
             percentile_ci[0, i] = sorted_mean[lower_ci]
             percentile_ci[1, i] = sorted_mean[upper_ci]
 
             mean_values.extend(mean)
             sample_means[i, ] = mean
 
-        self.plot_percentile_interval(repetitions, percentile_ci, rep)
+        self.plot_percentile_interval(
+            repetitions, percentile_ci, rep, "part2_1_method0_error.png")
         self.plot_expected_frequency(mean_values, rep)
-        self.bootstrap_ci(sample_means, alpha)
+        self.bootstrap_ci(sample_means, alpha, "part2_1_method0_bootci.png")
 
-    def bootstrap_ci(self, sample_means, alpha):
+    def bootstrap_ci(self, sample_means, alpha, filename):
         """Calculates bootstrap ci from sample means
 
         Args:
             sample_means: the sample means of the expected utility
             alpha: confidence level to use
+            filename: filename for plot
         """
         n_repeats = len(sample_means)
         n_b = len(sample_means[0])
@@ -189,15 +288,16 @@ class HistoricalPolicy:
         plt.title("Bootstrap CI")
         plt.xlabel("E[U]")
         plt.ylabel("samples")
-        plt.savefig("img/part2_1_method0_bootci.png")
+        plt.savefig("img/" + filename)
 
-    def plot_percentile_interval(self, repetitions, percentile_ci, rep):
+    def plot_percentile_interval(self, repetitions, percentile_ci, rep, filename):
         """Plots the error bounds based on the percentile method.
 
         Args:
-            repetitions: number of confidence intervals
+            repetitions: means of length: number of confidence intervals
             percentile_ci: the confidence bounds
             rep: the number of samples used in each confidence interval estimation
+            filename: name of plot
         """
 
         plt.errorbar(repetitions, range(len(repetitions)), xerr=(
@@ -205,7 +305,7 @@ class HistoricalPolicy:
         plt.title(f"Error bounds for expected utility ({rep} samples)")
         plt.xlabel("E[U]")
         plt.ylabel("samples")
-        plt.savefig("img/part2_1_method0_error.png")
+        plt.savefig("img/" + filename)
         plt.clf()
 
     def plot_expected_frequency(self, mean_values, rep):

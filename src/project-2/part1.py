@@ -408,9 +408,15 @@ if __name__ == "__main__":
 
     from HistoricalPolicy import HistoricalPolicy
     hp = HistoricalPolicy(2, 2, a, y)
-    hp.method0(100, 100, 5, 0.05)
+    #hp.method0(100, 1000, 5, 0.05)
 
     #hr.estimate_utility(x, a, y, hp)
     print(f"pi0_hat = {hp.pi0_hat}")
     print(f"theta_0 = {hp.theta_hat[0]}")
     print(f"theta_1 = {hp.theta_hat[1]}")
+
+    # bootstrap
+    #boot_util = hp.bootstrap_expected_utility(500)
+    #hp.plot_bootstrap_hist(boot_util, 500)
+    hp.bootstrap_percentile(100, 5, 0.05)
+    hp.plot_bootstrap_ci(100, 5)
