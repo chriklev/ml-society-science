@@ -402,7 +402,7 @@ if __name__ == "__main__":
     print(f"Average utility = {round(ur, 4)}")
 
     from historical_recommender import HistoricalRecommender
-    hr = HistoricalRecommender(1, 1)
+    hr = HistoricalRecommender(2, 2)
     uh = hr.estimate_utility(x, a, y)
     print(f"Average utility = {round(uh, 4)}")
 
