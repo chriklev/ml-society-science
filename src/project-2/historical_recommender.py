@@ -109,7 +109,7 @@ class HistoricalRecommender:
     # Return a distribution of effects for a given person's data and a specific treatment.
     # This should be an numpy.array of length self.n_outcomes
     def predict_proba(self, data, treatment):
-        return numpy.zeros(self.n_outcomes)
+        return np.zeros(self.n_outcomes)
 
     # Return a distribution of recommendations for a specific user datum
     # This should a numpy array of size equal to self.n_actions, summing up to 1

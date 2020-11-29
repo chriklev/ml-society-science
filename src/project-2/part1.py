@@ -373,9 +373,9 @@ if __name__ == "__main__":
     # print(f"E[U|a_t = 0, sym = 1] = {util_sym1_a0}")
     # print(f"E[U|a_t = 0, sym = 2] = {util_sym2_a0}")
 
-    # x_joined = [data.x_train, data.x_test]
-    # x = pd.concat(x_joined)
-    # sym1_posteriors = data.hierarchical_model(x, 1)
+    x_joined = [data.x_train, data.x_test]
+    x = pd.concat(x_joined)
+    sym1_posteriors = data.hierarchical_model(x, 1)
     # plot_posteriors(sym1_posteriors, 5, "histogram for symptom 1", show=False)
 
     # sym2_posteriors = data.hierarchical_model(x, 2)

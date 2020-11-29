@@ -1,4 +1,6 @@
 from sklearn import linear_model
+from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
+from sklearn.feature_selection import RFECV
 from sklearn.linear_model import LogisticRegression
 import numpy as np
 from part1 import MedicalData
@@ -40,6 +42,16 @@ class ImprovedRecommender:
         x = data
 
         regression_model = LogisticRegression(max_iter=1000)
+
+        print("Variable selection")
+        variable_selection_cv = RFECV(
+            estimator=regression_model, step=1, cv=StratifiedKFold(5, random_state=1), scoring='accuracy')
+        variable_selection_cv.fit(x, y)
+
+        selected_var = variable_selection_cv.support_
+
+        breakpoint()
+
         self.model = regression_model.fit(x, y)
 
     # Fit a model from patient data, actions and their effects
@@ -60,20 +72,70 @@ class ImprovedRecommender:
     ##
     # The policy should be a recommender that implements get_action_probability()
     def estimate_utility(self, data, actions, outcome, policy=None):
-        self.get_action_probabilities()
-        return 0
+
+        T = len(actions)
+        utility = np.zeros(T)
+
+        for t in range(T):
+            print(f"Estimating = {t}/{T}")
+            # one observation
+            user_data = data.iloc[t]
+            # get estimated best action
+            a_t = np.random.choice(
+                self.n_actions, p=self.get_action_probabilities(user_data))
+            # calculate utility from estimated action and outcome
+            utility[t] = self.reward(a_t, outcome.iloc[t])
+
+        return np.mean(utility)
+
+    def expected_reward(self, action, y_prob):
+        """Estimates expected reward.
+
+        Args:
+            action: the action to condition on
+            y_prob: the probability for the different outcomes (0/1)
+
+        Returns:
+            The expected reward.
+        """
+        return -0.1*action + (0*y_prob[0] + 1*y_prob[1])
 
     # Return a distribution of effects for a given person's data and a specific treatment.
     # This should be an numpy.array of length self.n_outcomes
     def predict_proba(self, data, treatment):
-        return np.zeros(self.n_outcomes)
+        """Calculates P(y|a = treatment, x = data) and returns the distribution
+        of effects/outcomes (y).
+
+        Args:
+            data: the covariates (x_t) for an observation
+            treatment: the action (a_t) used to predict the outcome
+
+        Returns:
+            The probabilities for the outcomes.
+        """
+        # add column with action to the observation
+        data["a"] = treatment
+        user_data = data.to_numpy().reshape(1, -1)
+        y_prob = self.model.predict_proba(user_data)
+
+        # breakpoint()
+
+        return y_prob[0]
 
     # Return a distribution of recommendations for a specific user datum
     # This should a numpy array of size equal to self.n_actions, summing up to 1
     def get_action_probabilities(self, user_data):
-        print("Recommending")
+        e_r = np.zeros(self.n_actions)
 
-        return np.ones(self.n_actions) / self.n_actions
+        for a_t in range(self.n_actions):
+            y_prob = self.predict_proba(user_data, a_t)
+            e_r[a_t] = self.expected_reward(a_t, y_prob)
+
+        action_prob = np.zeros(self.n_actions)
+
+        # the recommended action
+        action_prob[e_r.argmax()] = 1
+        return action_prob/np.sum(action_prob)
 
     # Return recommendations for a specific user datum
     # This should be an integer in range(self.n_actions)
@@ -106,4 +168,6 @@ if __name__ == "__main__":
     improved.fit_data(model_data)
     improved.set_reward(lambda a, y: y - 0.1*(a != 0))
 
-    improved.estimate_utility(data.x_test, data.a_test, data.y_test)
+    im_util = improved.estimate_utility(
+        data.x_test, data.a_test, data.y_test)
+    print(f"Expected utility = {round(im_util, 4)}")
