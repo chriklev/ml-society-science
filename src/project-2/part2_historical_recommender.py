@@ -60,7 +60,6 @@ class HistoricalRecommender:
     # Fit a model from patient data, actions and their effects
     # Here we assume that the outcome is a direct function of data and actions
     # This model can then be used in estimate_utility(), predict_proba() and recommend()
-
     def fit_treatment_outcome(self, data, actions, outcome):
         print("Fitting treatment outcomes")
         return None
@@ -76,12 +75,38 @@ class HistoricalRecommender:
     ##
     # The policy should be a recommender that implements get_action_probability()
     def estimate_utility(self, data, actions, outcome, policy=None):
+        """Calculates utility based on historical data.
+
+        Args:
+            data: covariates
+            actions: the actions taken by the recommender
+            outcome: the result of the actions, y | a
+            policy: policy to use when estimating utility. If the value is None, 
+                an average utility from historical data is calculated
+
+        Returns:
+            The estimated utility.
+        """
+        if policy is None:
+            T = len(actions)
+            a = actions.to_numpy()
+            y = outcome.to_numpy()
+            utility = np.empty(T)
+
+            for t in range(T):
+                if a[t] == 0:
+                    utility[t] = y[t]
+                else:
+                    utility[t] = -0.1*a[t] + y[t]
+
+            return np.mean(utility)
+
         return 0
 
     # Return a distribution of effects for a given person's data and a specific treatment.
     # This should be an numpy.array of length self.n_outcomes
     def predict_proba(self, data, treatment):
-        return numpy.zeros(self.n_outcomes)
+        return np.zeros(self.n_outcomes)
 
     # Return a distribution of recommendations for a specific user datum
     # This should a numpy array of size equal to self.n_actions, summing up to 1

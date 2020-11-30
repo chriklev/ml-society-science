@@ -77,7 +77,7 @@ class MedicalData:
         """
         logistic_regression = LogisticRegression(max_iter=1000)
         variable_selection_cv = RFECV(
-            estimator=logistic_regression, step=1, cv=StratifiedKFold(num_folds, random_state=1), scoring='accuracy')
+            estimator=logistic_regression, step=1, cv=StratifiedKFold(num_folds, random_state=1, shuffle=True), scoring='accuracy')
 
         x = self.x_train.iloc[:, : -2]
         symptom1 = self.x_train.iloc[:, -2]
@@ -358,65 +358,33 @@ def plot_posteriors(posteriors, num, title, show=True):
 
 if __name__ == "__main__":
     data = MedicalData()
-    # data.data_analysis()
-    # expected_utility_1 = data.measure_effect(1)
-    # expected_utility_0 = data.measure_effect(0)
-    # print(f"E[U|a_t = 1] = {expected_utility_1}")
-    # print(f"E[U|a_t = 0] = {expected_utility_0}")
+    data.data_analysis()
+    expected_utility_1 = data.measure_effect(1)
+    expected_utility_0 = data.measure_effect(0)
+    print(f"E[U|a_t = 1] = {expected_utility_1}")
+    print(f"E[U|a_t = 0] = {expected_utility_0}")
 
-    # util_sym1_a1 = data.measure_effect_symptom(1, 1)
-    # util_sym2_a1 = data.measure_effect_symptom(1, 2)
-    # util_sym1_a0 = data.measure_effect_symptom(0, 1)
-    # util_sym2_a0 = data.measure_effect_symptom(0, 2)
-    # print(f"E[U|a_t = 1, sym = 1] = {util_sym1_a1}")
-    # print(f"E[U|a_t = 1, sym = 2] = {util_sym2_a1}")
-    # print(f"E[U|a_t = 0, sym = 1] = {util_sym1_a0}")
-    # print(f"E[U|a_t = 0, sym = 2] = {util_sym2_a0}")
+    util_sym1_a1 = data.measure_effect_symptom(1, 1)
+    util_sym2_a1 = data.measure_effect_symptom(1, 2)
+    util_sym1_a0 = data.measure_effect_symptom(0, 1)
+    util_sym2_a0 = data.measure_effect_symptom(0, 2)
+    print(f"E[U|a_t = 1, sym = 1] = {util_sym1_a1}")
+    print(f"E[U|a_t = 1, sym = 2] = {util_sym2_a1}")
+    print(f"E[U|a_t = 0, sym = 1] = {util_sym1_a0}")
+    print(f"E[U|a_t = 0, sym = 2] = {util_sym2_a0}")
 
     x_joined = [data.x_train, data.x_test]
     x = pd.concat(x_joined)
     sym1_posteriors = data.hierarchical_model(x, 1)
-    # plot_posteriors(sym1_posteriors, 5, "histogram for symptom 1", show=False)
+    plot_posteriors(sym1_posteriors, 5, "histogram for symptom 1", show=False)
 
-    # sym2_posteriors = data.hierarchical_model(x, 2)
-    # plot_posteriors(sym2_posteriors, 5, "histogram for symptom 2", show=False)
+    sym2_posteriors = data.hierarchical_model(x, 2)
+    plot_posteriors(sym2_posteriors, 5, "histogram for symptom 2", show=False)
 
-    # sym1_cv_posteriors = data.hierarchical_model_cv(1, 5)
-    # plot_posteriors(sym1_cv_posteriors, 5,
-    #                 "histogram cv symptom 1", show=False)
+    sym1_cv_posteriors = data.hierarchical_model_cv(1, 5)
+    plot_posteriors(sym1_cv_posteriors, 5,
+                    "histogram cv symptom 1", show=False)
 
-    # sym2_cv_posteriors = data.hierarchical_model_cv(2, 5)
-    # plot_posteriors(sym2_cv_posteriors, 5,
-    #                 "histogram cv symptom 2", show=False)
-
-    # part 2
-    from random_recommender import RandomRecommender
-    rr = RandomRecommender(1, 1)
-    x_joined = [data.x_train, data.x_test]
-    x = pd.concat(x_joined)
-    a_joined = [data.a_train, data.a_test]
-    a = pd.concat(a_joined)
-    y_joined = [data.y_train, data.y_test]
-    y = pd.concat(y_joined)
-    ur = rr.estimate_utility(x, a, y)
-    print(f"Average utility = {round(ur, 4)}")
-
-    from historical_recommender import HistoricalRecommender
-    hr = HistoricalRecommender(2, 2)
-    uh = hr.estimate_utility(x, a, y)
-    print(f"Average utility = {round(uh, 4)}")
-
-    from HistoricalPolicy import HistoricalPolicy
-    hp = HistoricalPolicy(2, 2, a, y)
-    #hp.method0(100, 1000, 5, 0.05)
-
-    #hr.estimate_utility(x, a, y, hp)
-    print(f"pi0_hat = {hp.pi0_hat}")
-    print(f"theta_0 = {hp.theta_hat[0]}")
-    print(f"theta_1 = {hp.theta_hat[1]}")
-
-    # bootstrap
-    #boot_util = hp.bootstrap_expected_utility(500)
-    #hp.plot_bootstrap_hist(boot_util, 500)
-    hp.bootstrap_percentile(100, 5, 0.05)
-    hp.plot_bootstrap_ci(100, 5)
+    sym2_cv_posteriors = data.hierarchical_model_cv(2, 5)
+    plot_posteriors(sym2_cv_posteriors, 5,
+                    "histogram cv symptom 2", show=False)
