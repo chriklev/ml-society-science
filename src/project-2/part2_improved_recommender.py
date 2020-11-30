@@ -4,7 +4,6 @@ from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
 from sklearn.feature_selection import RFECV
 from sklearn.linear_model import LogisticRegression
 import numpy as np
-from part1 import MedicalData
 import pandas as pd
 
 

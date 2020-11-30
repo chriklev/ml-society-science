@@ -1,25 +1,3 @@
-# -*- Mode: python -*-
-# A simple reference recommender
-#
-#
-# This is a medical scenario with historical data.
-#
-# General functions
-#
-# - set_reward
-#
-# There is a set of functions for dealing with historical data:
-#
-# - fit_data
-# - fit_treatment_outcome
-# - estimate_utiltiy
-#
-# There is a set of functions for online decision making
-#
-# - predict_proba
-# - recommend
-# - observe
-
 from sklearn import linear_model
 import numpy as np
 

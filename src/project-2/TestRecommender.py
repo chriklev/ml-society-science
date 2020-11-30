@@ -1,4 +1,5 @@
 import random_recommender
+import adaptive_recommender
 import data_generation
 import numpy as np
 import pandas
@@ -33,7 +34,9 @@ outcome = pandas.read_csv(
 observations = features[:, :128]
 labels = features[:, 128] + features[:, 129]*2
 
-policy_factory = random_recommender.RandomRecommender
+#policy_factory = random_recommender.RandomRecommender
+policy_factory = adaptive_recommender.AdaptiveRecommender
+
 #import reference_recommender
 #policy_factory = reference_recommender.HistoricalRecommender
 
