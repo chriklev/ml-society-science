@@ -77,6 +77,11 @@ class LogisticRecommender:
     def estimate_utility(self, data, actions, outcome):
         """ Calculates estimated utility for this reccomender.
 
+        Args:
+            data: numpy.ndarray with observed features
+            actions: numpy.array with preformed actions
+            outcome: numpy.array with observed outcomes
+
         Returns:
             Estimated utility as a float.
         """
@@ -131,12 +136,25 @@ class LogisticRecommender:
         """
         return np.argmax(self.get_action_probabilities(user_data))
 
-    # Observe the effect of an action. This is an opportunity for you
-    # to refit your models, to take the new information into account.
     def observe(self, user, action, outcome):
+        """ Update logistic model with new observation.
 
-        user = user.reshape((1, self.model_data.shape[1]))
-        new_data = np.append(self.model_data, user)
+        Args:
+            data: numpy.array with observed features
+            actions: preformed action as integer
+            outcome: observed outcome as integer
+        """
+        if self.models is None:
+            new_data = user.reshape((1, -1))
+            new_actions = np.array(action).reshape((1))
+            new_outcome = np.array(outcome).reshape((1))
+        else:
+            user = user.reshape((1, -1))
+            new_data = np.append(self.model_data, user)
+            new_actions = np.append(self.model_actions, action)
+            new_outcome = np.append(self.model_outcome, outcome)
+
+        self.fit_treatment_outcome(new_data, new_actions, new_outcome)
 
     # After all the data has been obtained, do a final analysis. This can consist of a number of things:
     # 1. Recommending a specific fixed treatment policy
