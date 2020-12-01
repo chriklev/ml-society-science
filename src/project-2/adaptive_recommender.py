@@ -52,12 +52,6 @@ class AdaptiveRecommender:
         """
         print("Fitting treatment outcomes")
 
-        if self.n_actions != len(np.unique(actions)):
-            print(
-                f"Warning: self.n_actions = {self.n_actions}, len(np.unique(actions)) = {len(np.unique(actions))}")
-            print(f"self.n_actions will be set to the actual number of actions")
-            self.n_actions = np.unique(actions)
-
         regression_model = LogisticRegression(max_iter=5000, n_jobs=-1)
 
         x = data.copy()
@@ -145,23 +139,80 @@ class AdaptiveRecommender:
         """Calculates the conditional probability P(y | a, x).
 
         """
-        data['a'] = treatment
-        user_array = data.to_numpy().reshape(1, -1)
+        if isinstance(data, pd.core.series.Series):
+            data['a'] = treatment
+            user_array = data.to_numpy().reshape(1, -1)
+        else:
+            user_array = np.hstack((data.flatten(), treatment)).reshape(1, -1)
 
+        # P(y_t | a_t, x_t)
         p = self.model.predict_proba(user_array)
         return p[0]
+
+    def estimate_expected_conditional_reward(self, user_data, action):
+        """Estimates the expected reward conditional on an action.
+
+        Args:
+            user_data: the covariates of an observation
+            action: the selected action (a_t = a)
+
+        Returns:
+            The expected conditional reward E[r_t | a_t = a].
+        """
+        estimated_cond_utility = 0
+
+        # sum over possible outcomes for expected reward
+        for y_t in range(self.n_outcomes):
+            p_y = self.predict_proba(user_data.copy(), action)
+            estimated_cond_utility += p_y[y_t] * self.reward(action, y_t)
+
+        return estimated_cond_utility
 
     # Return a distribution of recommendations for a specific user datum
     # This should a numpy array of size equal to self.n_actions, summing up to 1
     def get_action_probabilities(self, user_data):
+        """Calculates the conditional distribution of actions pi(a_t | x_t).
+
+        Args:
+            user_data: observation to calculate the conditional distribution for             
+        """
+        # # print("Recommending")
+        # if isinstance(user_data, pd.core.series.Series):
+        #     user_data = user_data.to_numpy().reshape(1, -1)
+        # else:
+        #     user_data = user_data.reshape(1, -1)
+
+        # # pi(a|x)
+        # pi = np.zeros(self.n_actions)
+
+        # # predict values for a
+        # predictions = self.policy.predict_proba(user_data)
+
+        # for a_t in range(len(predictions[0])):
+        #     pi[a_t] = predictions[0][a_t]
+
+        # assert np.sum(pi) == 1
+
+        # return pi
         # print("Recommending")
         if isinstance(user_data, pd.core.series.Series):
             user_data = user_data.to_numpy().reshape(1, -1)
         else:
             user_data = user_data.reshape(1, -1)
 
-        pi = self.policy.predict_proba(user_data)
-        return pi[0]
+        # pi(a|x)
+        pi = np.zeros(self.n_actions)
+        expected_reward = np.zeros(self.n_actions)
+
+        for a_t in range(self.n_actions):
+            expected_reward[a_t] = self.estimate_expected_conditional_reward(
+                user_data, a_t)
+
+        pi[np.argmax(expected_reward)] = 1
+
+        assert np.sum(pi) == 1
+
+        return pi
 
     # Return recommendations for a specific user datum
     # This should be an integer in range(self.n_actions)

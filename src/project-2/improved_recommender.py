@@ -1,27 +1,8 @@
-# -*- Mode: python -*-
-# A simple reference recommender
-#
-#
-# This is a medical scenario with historical data.
-#
-# General functions
-#
-# - set_reward
-#
-# There is a set of functions for dealing with historical data:
-#
-# - fit_data
-# - fit_treatment_outcome
-# - estimate_utiltiy
-#
-# There is a set of functions for online decision making
-#
-# - predict_proba
-# - recommend
-# - observe
-
 from sklearn import linear_model
 import numpy as np
+from sklearn.linear_model import LogisticRegression
+from part1 import MedicalData
+import pandas as pd
 
 
 class ImprovedRecommender:
@@ -60,10 +41,41 @@ class ImprovedRecommender:
     # Fit a model from patient data, actions and their effects
     # Here we assume that the outcome is a direct function of data and actions
     # This model can then be used in estimate_utility(), predict_proba() and recommend()
-
     def fit_treatment_outcome(self, data, actions, outcome):
+        """Fits historical data to the policy. Includes the action as a
+        covariate in the logistic regression model.
+
+        Args:
+            data: covariates, x_t
+            actions: the action taken for each observation
+            outcome: the outcome y_t | a_t, x_t
+        """
         print("Fitting treatment outcomes")
-        return None
+
+        regression_model = LogisticRegression(max_iter=5000, n_jobs=-1)
+
+        x = data.copy()
+        if isinstance(data, pd.DataFrame):
+            x = x.to_numpy()
+
+        if isinstance(actions, pd.DataFrame):
+            actions = actions.to_numpy()
+
+        if isinstance(outcome, pd.DataFrame):
+            outcome = outcome.to_numpy()
+
+        self.data = x
+        self.actions = actions
+        self.outcome = outcome
+
+        x = np.hstack((x, actions))
+
+        regression_model.fit(x, outcome.flatten())
+        self.model = regression_model
+
+        policy_model = LogisticRegression(max_iter=5000, n_jobs=-1)
+        policy_model.fit(data, actions.flatten())
+        self.policy = policy_model
 
     # Estimate the utility of a specific policy from historical data (data, actions, outcome),
     # where utility is the expected reward of the policy.
@@ -76,29 +88,122 @@ class ImprovedRecommender:
     ##
     # The policy should be a recommender that implements get_action_probability()
     def estimate_utility(self, data, actions, outcome, policy=None):
-        return 0
+        T = len(actions)
+        print(f"Estimating = {T} observations")
+
+        utility = np.zeros(T)
+
+        for t in range(T):
+            print(f"{t}/{T}")
+
+            # one observation
+            user_data = data.iloc[t]
+
+            # action distribution
+            pi_a_x = self.get_action_probabilities(user_data)
+
+            # expected reward
+            utility[t] = self.estimate_expected_reward(user_data, pi_a_x)
+
+        return np.mean(utility)
+
+    def estimate_expected_reward(self, user_data, pi):
+        """Estimates the expected reward for a given observation.
+
+        Args:
+            user_data: the observation data (x_t)
+            pi: the conditional distribution pi(a_t | x_t)
+
+        Returns:
+            The expected reward for the observation.
+        """
+        estimated_utility = 0
+
+        for a_t in range(self.n_actions):
+
+            for y_t in range(self.n_outcomes):
+                p_y = self.predict_proba(user_data.copy(), a_t)
+
+                estimated_utility += pi[a_t] * p_y[y_t] * self.reward(a_t, y_t)
+
+        return estimated_utility
+
+    def estimate_expected_conditional_reward(self, user_data, action):
+        """Estimates the expected reward conditional on an action.
+
+        Args:
+            user_data: the covariates of an observation
+            action: the selected action (a_t = a)
+
+        Returns:
+            The expected conditional reward E[r_t | a_t = a].
+        """
+        estimated_cond_utility = 0
+
+        # sum over possible outcomes for expected reward
+        for y_t in range(self.n_outcomes):
+            p_y = self.predict_proba(user_data.copy(), action)
+            estimated_cond_utility += p_y[y_t] * self.reward(action, y_t)
+
+        return estimated_cond_utility
 
     # Return a distribution of effects for a given person's data and a specific treatment.
     # This should be an numpy.array of length self.n_outcomes
+
     def predict_proba(self, data, treatment):
-        return numpy.zeros(self.n_outcomes)
+        """Calculates the conditional probability P(y | a, x).
+
+        """
+        if isinstance(data, pd.core.series.Series):
+            data['a'] = treatment
+            user_array = data.to_numpy().reshape(1, -1)
+        else:
+            user_array = np.hstack((data.flatten(), treatment)).reshape(1, -1)
+
+        # P(y_t | a_t, x_t)
+        p = self.model.predict_proba(user_array)
+        return p[0]
 
     # Return a distribution of recommendations for a specific user datum
     # This should a numpy array of size equal to self.n_actions, summing up to 1
     def get_action_probabilities(self, user_data):
+        """Calculates the conditional distribution of actions pi(a_t | x_t).
+
+         Args:
+             user_data: observation to calculate the conditional distribution for
+         """
         # print("Recommending")
-        return np.ones(self.n_actions) / self.n_actions
+        if isinstance(user_data, pd.core.series.Series):
+            user_data = user_data.to_numpy().reshape(1, -1)
+        else:
+            user_data = user_data.reshape(1, -1)
+
+        # pi(a|x)
+        pi = np.zeros(self.n_actions)
+        expected_reward = np.zeros(self.n_actions)
+
+        for a_t in range(self.n_actions):
+            expected_reward[a_t] = self.estimate_expected_conditional_reward(
+                user_data, a_t)
+
+        pi[np.argmax(expected_reward)] = 1
+
+        assert np.sum(pi) == 1
+
+        return pi
 
     # Return recommendations for a specific user datum
     # This should be an integer in range(self.n_actions)
-
     def recommend(self, user_data):
         return np.random.choice(self.n_actions, p=self.get_action_probabilities(user_data))
 
     # Observe the effect of an action. This is an opportunity for you
     # to refit your models, to take the new information into account.
     def observe(self, user, action, outcome):
-        return None
+        """Updates the model based on new observation.
+
+        """
+        pass
 
     # After all the data has been obtained, do a final analysis. This can consist of a number of things:
     # 1. Recommending a specific fixed treatment policy
@@ -107,3 +212,18 @@ class ImprovedRecommender:
     # 4. Outputting an estimate of the advantage of gene-targeting treatments versus the best fixed treatment
     def final_analysis(self):
         return None
+
+
+if __name__ == "__main__":
+    data = MedicalData()
+    n_actions = len(np.unique(data.a_train))
+    n_outcomes = len(np.unique(data.y_train))
+
+    im_recommender = ImprovedRecommender(n_actions, n_outcomes)
+    im_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
+    im_recommender.fit_treatment_outcome(
+        data.x_train.iloc[0:50, ], data.a_train.iloc[0:50, ], data.y_train.iloc[0:50, ])
+
+    im_estimated_utility = im_recommender.estimate_utility(
+        data.x_test.iloc[0:400, ], data.a_test.iloc[0:400, ], data.y_test.iloc[0:400, ])
+    print(f"Estimated expected utility = {round(im_estimated_utility, 4)}")
