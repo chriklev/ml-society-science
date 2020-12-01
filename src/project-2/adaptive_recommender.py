@@ -122,6 +122,8 @@ class AdaptiveRecommender:
         utility = np.zeros(T)
 
         for t in range(T):
+            print(f"{t}/{T}")
+
             # one observation
             user_data = data.iloc[t]
 
@@ -129,6 +131,9 @@ class AdaptiveRecommender:
             pi_a_x = self.get_action_probabilities(user_data)
 
             utility[t] = self.estimate_expected_reward(user_data, pi_a_x)
+
+            # observe outcome
+            self.observe(user_data, actions.iloc[t], outcome.iloc[t])
 
         return np.mean(utility)
 
@@ -147,7 +152,7 @@ class AdaptiveRecommender:
         for a_t in range(self.n_actions):
 
             for y_t in range(self.n_outcomes):
-                p_y = self.predict_proba(user_data, a_t)
+                p_y = self.predict_proba(user_data.copy(), a_t)
 
                 estimated_utility += pi[a_t] * p_y[y_t] * self.reward(a_t, y_t)
 
@@ -181,7 +186,6 @@ class AdaptiveRecommender:
     # Return recommendations for a specific user datum
     # This should be an integer in range(self.n_actions)
     def recommend(self, user_data):
-        # breakpoint()
         return np.random.choice(self.n_actions, p=self.get_action_probabilities(user_data))
 
     # Observe the effect of an action. This is an opportunity for you
@@ -219,5 +223,5 @@ if __name__ == "__main__":
         data.x_train, data.a_train, data.y_train)
 
     ada_estimated_utility = ada_recommender.estimate_utility(
-        data.x_test, data.a_test, data.y_test)
+        data.x_test.iloc[0:500, ], data.a_test.iloc[0:500, ], data.y_test.iloc[0:500, ])
     print(f"Estimated expected utility = {round(ada_estimated_utility, 4)}")

@@ -14,6 +14,7 @@ def test_policy(generator, policy, reward_function, T):
     policy.set_reward(reward_function)
     u = 0
     for t in range(T):
+        print(f"{t}/{T}")
         x = generator.generate_features()
         a = policy.recommend(x)
         y = generator.generate_outcome(x, a)
@@ -21,7 +22,7 @@ def test_policy(generator, policy, reward_function, T):
         u += r
         policy.observe(x, a, y)
         # print(a)
-        print("x: ", x, "a: ", a, "y:", y, "r:", r)
+        #print("x: ", x, "a: ", a, "y:", y, "r:", r)
     return u
 
 
@@ -53,7 +54,7 @@ print("Fitting historical data to the policy")
 policy.fit_treatment_outcome(features, actions, outcome)
 # Run an online test with a small number of actions
 print("Running an online test")
-n_tests = 1000
+n_tests = 100
 result = test_policy(generator, policy, default_reward_function, n_tests)
 print("Total reward:", result)
 print("Final analysis of results")
@@ -71,7 +72,7 @@ print("Fitting historical data to the policy")
 policy.fit_treatment_outcome(features, actions, outcome)
 # Run an online test with a small number of actions
 print("Running an online test")
-n_tests = 1000
+n_tests = 100
 result = test_policy(generator, policy, default_reward_function, n_tests)
 print("Total reward:", result)
 print("Final analysis of results")
