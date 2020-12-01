@@ -1,25 +1,3 @@
-# -*- Mode: python -*-
-# A simple reference recommender
-#
-#
-# This is a medical scenario with historical data.
-#
-# General functions
-#
-# - set_reward
-#
-# There is a set of functions for dealing with historical data:
-#
-# - fit_data
-# - fit_treatment_outcome
-# - estimate_utiltiy
-#
-# There is a set of functions for online decision making
-#
-# - predict_proba
-# - recommend
-# - observe
-
 from sklearn import linear_model
 import numpy as np
 from sklearn.linear_model import LogisticRegression
@@ -115,7 +93,7 @@ class AdaptiveRecommender:
     # to get an estimate of the utility.
     ##
     # The policy should be a recommender that implements get_action_probability()
-    def estimate_utility(self, data, actions, outcome, policy=None):
+    def estimate_utility(self, data, actions, outcome, policy=None, observe=False):
         T = len(actions)
         print(f"Estimating = {T} observations")
 
@@ -130,10 +108,12 @@ class AdaptiveRecommender:
             # action distribution
             pi_a_x = self.get_action_probabilities(user_data)
 
+            # expected reward
             utility[t] = self.estimate_expected_reward(user_data, pi_a_x)
 
             # observe outcome
-            self.observe(user_data, actions.iloc[t], outcome.iloc[t])
+            if observe:
+                self.observe(user_data, actions.iloc[t], outcome.iloc[t])
 
         return np.mean(utility)
 
@@ -220,8 +200,8 @@ if __name__ == "__main__":
     ada_recommender = AdaptiveRecommender(n_actions, n_outcomes)
     ada_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
     ada_recommender.fit_treatment_outcome(
-        data.x_train, data.a_train, data.y_train)
+        data.x_train.iloc[0:50, ], data.a_train.iloc[0:50, ], data.y_train.iloc[0:50, ])
 
     ada_estimated_utility = ada_recommender.estimate_utility(
-        data.x_test.iloc[0:500, ], data.a_test.iloc[0:500, ], data.y_test.iloc[0:500, ])
+        data.x_test.iloc[0:400, ], data.a_test.iloc[0:400, ], data.y_test.iloc[0:400, ], observe=True)
     print(f"Estimated expected utility = {round(ada_estimated_utility, 4)}")
