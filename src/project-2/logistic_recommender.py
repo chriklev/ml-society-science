@@ -65,14 +65,14 @@ class LogisticRecommender:
         self.model_actions = actions
         self.model_outcome = outcome
 
-        self.models = np.empty(self.n_actions)
+        self.models = {}
 
         for a in range(self.n_actions):
             ind = actions == a
 
             self.models[a] = LogisticRegression(
                 penalty='l2', multi_class='ovr')
-            self.models[a].fit(data[ind], outcome[ind])
+            self.models[a].fit(data[ind, :], outcome[ind])
 
     def estimate_utility(self, data, actions, outcome):
         """ Calculates estimated utility for this reccomender.
@@ -107,7 +107,7 @@ class LogisticRecommender:
             data: numpy.array with observed features.
             treatment: integer representing the treatment.
         """
-        return self.models[treatment].predict_proba(data)[:, 1]
+        return self.models[treatment].predict_proba(data.reshape((-1, 130)))[0, 1]
 
     def get_action_probabilities(self, user_data):
         """ Finds action probabilities by expected reward.
