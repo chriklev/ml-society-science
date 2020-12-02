@@ -1,7 +1,8 @@
-import adaptive_recommender
-import historical_recommender
-import improved_recommender
+#import adaptive_recommender
+#import historical_recommender
+#import improved_recommender
 import random_recommender
+import logistic_recommender
 import data_generation
 import numpy as np
 import pandas
@@ -43,7 +44,9 @@ labels = features[:, 128] + features[:, 129]*2
 
 #policy_factory = adaptive_recommender.AdaptiveRecommender
 
-policy_factory = improved_recommender.ImprovedRecommender
+# policy_factory = improved_recommender.ImprovedRecommender
+
+policy_factory = logistic_recommender.LogisticRecommender
 
 #import reference_recommender
 #policy_factory = reference_recommender.HistoricalRecommender
@@ -55,6 +58,7 @@ print("Setting up simulator")
 generator = data_generation.DataGenerator(matrices="./generating_matrices.mat")
 print("Setting up policy")
 policy = policy_factory(generator.get_n_actions(), generator.get_n_outcomes())
+print(policy.n_actions, policy.n_outcomes)
 # Fit the policy on historical data first
 print("Fitting historical data to the policy")
 policy.fit_treatment_outcome(features, actions, outcome)

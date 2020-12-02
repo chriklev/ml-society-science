@@ -61,6 +61,10 @@ class LogisticRecommender:
             actions: numpy.array with preformed actions
             outcome: numpy.array with observed outcomes
         """
+        # Ensure actions and outcomes are in 1-d vectors
+        actions = actions.reshape(-1)
+        outcome = outcome.reshape(-1)
+        # Save training data
         self.model_data = data
         self.model_actions = actions
         self.model_outcome = outcome
@@ -150,7 +154,7 @@ class LogisticRecommender:
             new_outcome = np.array(outcome).reshape((1))
         else:
             user = user.reshape((1, -1))
-            new_data = np.append(self.model_data, user)
+            new_data = np.append(self.model_data, user, axis=0)
             new_actions = np.append(self.model_actions, action)
             new_outcome = np.append(self.model_outcome, outcome)
 
