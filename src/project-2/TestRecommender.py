@@ -1,7 +1,15 @@
+<<<<<<< ours
 import adaptive_recommender
 import historical_recommender
 import improved_recommender
 import random_recommender
+=======
+#import adaptive_recommender
+#import historical_recommender
+#import improved_recommender
+import random_recommender
+import logistic_recommender
+>>>>>>> theirs
 import data_generation
 import numpy as np
 import pandas
@@ -43,7 +51,13 @@ labels = features[:, 128] + features[:, 129]*2
 
 #policy_factory = adaptive_recommender.AdaptiveRecommender
 
+<<<<<<< ours
 policy_factory = improved_recommender.ImprovedRecommender
+=======
+# policy_factory = improved_recommender.ImprovedRecommender
+
+policy_factory = logistic_recommender.LogisticRecommender
+>>>>>>> theirs
 
 #import reference_recommender
 #policy_factory = reference_recommender.HistoricalRecommender
