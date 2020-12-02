@@ -85,6 +85,7 @@ class HistoricalPolicy:
             boot_expected_utility: the expected utilities
             nb: number of bootstrap samples
         """
+        plt.clf()
         plt.hist(boot_expected_utility)
         plt.title(f"{nb} bootstrap expected utilities")
         plt.xlabel("E[U]")
@@ -299,7 +300,7 @@ class HistoricalPolicy:
             rep: the number of samples used in each confidence interval estimation
             filename: name of plot
         """
-
+        plt.clf()
         plt.errorbar(repetitions, range(len(repetitions)), xerr=(
             repetitions - percentile_ci[0], percentile_ci[1] - repetitions), marker='o', ls="")
         plt.title(f"Error bounds for expected utility ({rep} samples)")

@@ -3,6 +3,63 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from part1 import MedicalData
 import pandas as pd
+import attr
+
+
+@attr.s
+class RecommenderModel:
+    """Superclass for recommender models, contains common functionality for the
+    recommender models.
+
+    """
+
+    n_actions = attr.ib()
+    n_outcomes = attr.ib()
+
+    def set_reward(self, reward):
+        self.reward = reward
+
+
+@attr.s
+class Approach1_hist_bl(RecommenderModel):
+
+    def fit_treatment_outcome(self, data, actions, outcomes):
+        x = np.hstack((data.copy(), actions))
+        regression_model = LogisticRegression(max_iter=5000, n_jobs=-1)
+
+        regression_model.fit(x, outcomes.flatten())
+        self.model = regression_model
+
+        policy_model = LogisticRegression(max_iter=5000, n_jobs=-1)
+        policy_model.fit(data, actions.flatten())
+        self.policy = policy_model
+
+    def get_action_probabilities(self, user_data):
+        # print("Recommending")
+        if isinstance(user_data, pd.core.series.Series):
+            user_data = user_data.to_numpy().reshape(1, -1)
+        else:
+            user_data = user_data.reshape(1, -1)
+
+        # pi(a|x)
+        pi = np.zeros(self.n_actions)
+
+        # predict values for a
+        predictions = self.policy.predict_proba(user_data)
+
+        for a_t in range(len(predictions[0])):
+            pi[a_t] = predictions[0][a_t]
+
+        assert np.sum(pi) == 1
+
+        return pi
+
+    def predict_proba(self, data, treatment):
+        data['a'] = treatment
+        user_array = data.to_numpy().reshape(1, -1)
+
+        p = self.model.predict_proba(user_array)
+        return p[0]
 
 
 class HistoricalRecommender:
@@ -41,7 +98,7 @@ class HistoricalRecommender:
     # Fit a model from patient data, actions and their effects
     # Here we assume that the outcome is a direct function of data and actions
     # This model can then be used in estimate_utility(), predict_proba() and recommend()
-    def fit_treatment_outcome(self, data, actions, outcome):
+    def fit_treatment_outcome(self, data, actions, outcome, recommender_model=None):
         """Calculates and fits:
 
         P(y_t | a_t, x_t): the distribution of outcomes
@@ -53,8 +110,6 @@ class HistoricalRecommender:
             outcome: the vector of outcomes y_t
         """
         print("Fitting treatment outcomes")
-
-        regression_model = LogisticRegression(max_iter=5000, n_jobs=-1)
 
         x = data.copy()
         if isinstance(data, pd.DataFrame):
@@ -69,15 +124,15 @@ class HistoricalRecommender:
         self.data = x
         self.actions = actions
         self.outcome = outcome
-
         x = np.hstack((x, actions))
 
-        regression_model.fit(x, outcome.flatten())
-        self.model = regression_model
+        if recommender_model is None:
+            recommender_model = Approach1_hist_bl(
+                self.n_actions, self.n_outcomes)
 
-        policy_model = LogisticRegression(max_iter=5000, n_jobs=-1)
-        policy_model.fit(data, actions.flatten())
-        self.policy = policy_model
+        recommender_model.fit_treatment_outcome(data, actions, outcome)
+        recommender_model.set_reward(self.reward)
+        self.recommender_model = recommender_model
 
     # Estimate the utility of a specific policy from historical data (data, actions, outcome),
     # where utility is the expected reward of the policy.
@@ -89,6 +144,7 @@ class HistoricalRecommender:
     # to get an estimate of the utility.
     ##
     # The policy should be a recommender that implements get_action_probability()
+
     def estimate_utility(self, data, actions, outcome, policy=None):
         """Estimates the expected utility for the provided data set.
 
@@ -143,14 +199,17 @@ class HistoricalRecommender:
     # Return a distribution of effects for a given person's data and a specific treatment.
     # This should be an numpy.array of length self.n_outcomes
     def predict_proba(self, data, treatment):
-        """Calculates the conditional probability P(y | a, x).
+        """Calculates the conditional probability P(y | a, x) through the 
+        recommender model.
 
+        Args:
+            data: the covariates for an observation (x_t)
+            treatment: the action to condition on (a_t)
+
+        Returns:
+            The conditional distribution.
         """
-        data['a'] = treatment
-        user_array = data.to_numpy().reshape(1, -1)
-
-        p = self.model.predict_proba(user_array)
-        return p[0]
+        return self.recommender_model.predict_proba(data, treatment)
 
     # Return a distribution of recommendations for a specific user datum
     # This should a numpy array of size equal to self.n_actions, summing up to 1
@@ -160,24 +219,7 @@ class HistoricalRecommender:
         Args:
             user_data: observation to calculate the conditional distribution for             
         """
-        # print("Recommending")
-        if isinstance(user_data, pd.core.series.Series):
-            user_data = user_data.to_numpy().reshape(1, -1)
-        else:
-            user_data = user_data.reshape(1, -1)
-
-        # pi(a|x)
-        pi = np.zeros(self.n_actions)
-
-        # predict values for a
-        predictions = self.policy.predict_proba(user_data)
-
-        for a_t in range(len(predictions[0])):
-            pi[a_t] = predictions[0][a_t]
-
-        assert np.sum(pi) == 1
-
-        return pi
+        return self.recommender_model.get_action_probabilities(user_data)
 
     # Return recommendations for a specific user datum
     # This should be an integer in range(self.n_actions)
