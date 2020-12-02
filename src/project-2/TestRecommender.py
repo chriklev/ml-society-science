@@ -58,7 +58,6 @@ print("Setting up simulator")
 generator = data_generation.DataGenerator(matrices="./generating_matrices.mat")
 print("Setting up policy")
 policy = policy_factory(generator.get_n_actions(), generator.get_n_outcomes())
-print(policy.n_actions, policy.n_outcomes)
 # Fit the policy on historical data first
 print("Fitting historical data to the policy")
 policy.fit_treatment_outcome(features, actions, outcome)

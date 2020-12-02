@@ -75,7 +75,7 @@ class LogisticRecommender:
             ind = actions == a
 
             self.models[a] = LogisticRegression(
-                penalty='l2', multi_class='ovr')
+                penalty='l2', multi_class='ovr', max_iter=200)
             self.models[a].fit(data[ind, :], outcome[ind])
 
     def estimate_utility(self, data, actions, outcome):
