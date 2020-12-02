@@ -2,28 +2,27 @@ from sklearn import linear_model
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from part1 import MedicalData
+from utilities import RecommenderModel, FinalAnalysis, FixedTreatmentPolicy
 import pandas as pd
 import attr
-
-
-@attr.s
-class RecommenderModel:
-    """Superclass for recommender models, contains common functionality for the
-    recommender models.
-
-    """
-
-    n_actions = attr.ib()
-    n_outcomes = attr.ib()
-
-    def set_reward(self, reward):
-        self.reward = reward
 
 
 @attr.s
 class Approach1_hist_bl(RecommenderModel):
 
     def fit_treatment_outcome(self, data, actions, outcomes):
+        """Fits the model used from historical data.
+
+        Args:
+            data: x_t
+            actions: a_t | x_t
+            outcomes: y_t | a_t, x_t
+        """
+
+        self.actions = actions
+        self.outcome = outcomes
+        self.data = data
+
         x = np.hstack((data.copy(), actions))
         regression_model = LogisticRegression(max_iter=5000, n_jobs=-1)
 
@@ -55,11 +54,28 @@ class Approach1_hist_bl(RecommenderModel):
         return pi
 
     def predict_proba(self, data, treatment):
-        data['a'] = treatment
-        user_array = data.to_numpy().reshape(1, -1)
+
+        if isinstance(data, pd.core.series.Series):
+            data['a'] = treatment
+            user_array = data.to_numpy().reshape(1, -1)
+        else:
+            user_array = np.hstack((data, treatment)).reshape(1, -1)
 
         p = self.model.predict_proba(user_array)
+
         return p[0]
+
+    def observe(self, user, action, outcome):
+        """Updates the data.
+
+        Args:
+            user: x_t
+            action: a_t
+            outcome: y_t
+        """
+        self.data = np.vstack((self.data, user))
+        self.actions = np.vstack((self.actions, action))
+        self.outcome = np.vstack((self.outcome, outcome))
 
 
 class HistoricalRecommender:
@@ -144,7 +160,6 @@ class HistoricalRecommender:
     # to get an estimate of the utility.
     ##
     # The policy should be a recommender that implements get_action_probability()
-
     def estimate_utility(self, data, actions, outcome, policy=None):
         """Estimates the expected utility for the provided data set.
 
@@ -156,19 +171,27 @@ class HistoricalRecommender:
         Returns:
             The estimated expected utility.
         """
+        # if policy is not given, use the class' own get_action_probabilities
+        if policy is None:
+            action_prob_method = self.get_action_probabilities
+        # else, use the provided policy
+        else:
+            action_prob_method = policy.get_action_probabilities
+
+        if isinstance(data, pd.DataFrame):
+            data = data.to_numpy()
+
         T = len(actions)
         print(f"Estimating = {T} observations")
 
         utility = np.zeros(T)
 
         for t in range(T):
-            print(f"{t}/{T}")
-
             # one observation
-            user_data = data.iloc[t]
+            user_data = data[t, ]
 
             # action distribution
-            pi_a_x = self.get_action_probabilities(user_data)
+            pi_a_x = action_prob_method(user_data)
 
             # expected reward
             utility[t] = self.estimate_expected_reward(user_data, pi_a_x)
@@ -209,6 +232,9 @@ class HistoricalRecommender:
         Returns:
             The conditional distribution.
         """
+        if isinstance(data, pd.core.series.Series):
+            data = data.to_numpy()
+
         return self.recommender_model.predict_proba(data, treatment)
 
     # Return a distribution of recommendations for a specific user datum
@@ -230,14 +256,39 @@ class HistoricalRecommender:
     # Observe the effect of an action. This is an opportunity for you
     # to refit your models, to take the new information into account.
     def observe(self, user, action, outcome):
-        return None
+        """Observe new observations dynamically. The historical recommender
+        will not utilize this, but saves the data.
+
+        Args:
+            user: covariates for a specific user
+            action: the action selected by the recommender/policy
+            outcome: the outcome y | a
+        """
+        self.recommender_model.observe(user, action, outcome)
 
     # After all the data has been obtained, do a final analysis. This can consist of a number of things:
     # 1. Recommending a specific fixed treatment policy
     # 2. Suggesting looking at specific genes more closely
     # 3. Showing whether or not the new treatment might be better than the old, and by how much.
     # 4. Outputting an estimate of the advantage of gene-targeting treatments versus the best fixed treatment
-    def final_analysis(self):
+    def final_analysis(self, n_tests=1000, generator=None):
+        """After the testing and the new observations are added.
+
+        Args:
+            n_tests: number of tests to run
+            generator: the generator from Christos' test bench
+        """
+        analysis = FinalAnalysis()
+        # 1
+        print(f"1. Specific fixed treatment policy")
+        action_utilities = analysis.fixed_treatment_policy_check(
+            recommender=self, n_tests=n_tests, generator=generator)
+        for a_t in range(self.n_actions):
+            print(f"E[U | a = {a_t}] = {round(action_utilities[a_t, 1], 4)}")
+
+        # 2
+        print(f"2. Looking at specific genes more closely")
+
         return None
 
 

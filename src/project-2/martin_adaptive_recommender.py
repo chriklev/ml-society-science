@@ -4,7 +4,7 @@ from sklearn.linear_model import LogisticRegression
 from part1 import MedicalData
 import pandas as pd
 import attr
-from historical_recommender import RecommenderModel
+from martin_historical_recommender import RecommenderModel
 
 
 @attr.s

@@ -1,6 +1,6 @@
-import adaptive_recommender
-import historical_recommender
-import improved_recommender
+import martin_adaptive_recommender
+import martin_historical_recommender
+import martin_improved_recommender
 import random_recommender
 import data_generation
 import numpy as np
@@ -24,7 +24,7 @@ def test_policy(generator, policy, reward_function, T):
         policy.observe(x, a, y)
         # print(a)
         #print("x: ", x, "a: ", a, "y:", y, "r:", r)
-        print(f"{t}/{T}")
+        # print(f"{t}/{T}")
     return u
 
 
@@ -39,11 +39,11 @@ labels = features[:, 128] + features[:, 129]*2
 
 #policy_factory = random_recommender.RandomRecommender
 
-#policy_factory = historical_recommender.HistoricalRecommender
+#policy_factory = martin_historical_recommender.HistoricalRecommender
+
+policy_factory = martin_improved_recommender.ImprovedRecommender
 
 #policy_factory = adaptive_recommender.AdaptiveRecommender
-
-policy_factory = improved_recommender.ImprovedRecommender
 
 #import reference_recommender
 #policy_factory = reference_recommender.HistoricalRecommender
@@ -64,7 +64,7 @@ n_tests = 1000
 result = test_policy(generator, policy, default_reward_function, n_tests)
 print("Total reward:", result)
 print("Final analysis of results")
-policy.final_analysis()
+policy.final_analysis(n_tests, generator=generator)
 
 # First test with the same number of treatments
 print("--- Testing with an additional experimental treatment and 126 gene silencing treatments ---")
@@ -82,4 +82,4 @@ n_tests = 1000
 result = test_policy(generator, policy, default_reward_function, n_tests)
 print("Total reward:", result)
 print("Final analysis of results")
-policy.final_analysis()
+policy.final_analysis(n_tests, generator=generator)

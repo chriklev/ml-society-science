@@ -3,14 +3,22 @@ import numpy as np
 import attr
 from sklearn.linear_model import LogisticRegression
 from part1 import MedicalData
-from historical_recommender import RecommenderModel
+from utilities import FinalAnalysis, FixedTreatmentPolicy, RecommenderModel
+from martin_historical_recommender import RecommenderModel
 import pandas as pd
+from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
+from sklearn.feature_selection import RFECV
 
 
 @attr.s
 class Approach1_impr_bl(RecommenderModel):
 
     def fit_treatment_outcome(self, data, actions, outcomes):
+
+        self.actions = actions
+        self.outcome = outcomes
+        self.data = data
+
         x = np.hstack((data.copy(), actions))
         regression_model = LogisticRegression(max_iter=5000, n_jobs=-1)
 
@@ -71,6 +79,111 @@ class Approach1_impr_bl(RecommenderModel):
             estimated_cond_utility += p_y[y_t] * self.reward(action, y_t)
 
         return estimated_cond_utility
+
+    def observe(self, user, action, outcome):
+        """Updates the data.
+
+        Args:
+            user: x_t
+            action: a_t
+            outcome: y_t
+        """
+        self.data = np.vstack((self.data, user))
+        self.actions = np.vstack((self.actions, action))
+        self.outcome = np.vstack((self.outcome, outcome))
+
+
+@attr.s
+class Approach1_impr_varsel(RecommenderModel):
+
+    def fit_treatment_outcome(self, data, actions, outcomes):
+
+        self.actions = actions
+        self.outcome = outcomes
+        self.data = data
+
+        x = np.hstack((data.copy(), actions))
+        regression_model = LogisticRegression(max_iter=5000, n_jobs=-1)
+
+        variable_selection_cv = RFECV(
+            estimator=regression_model, step=1, cv=StratifiedKFold(5, random_state=1, shuffle=True), n_jobs=-1, scoring='accuracy')
+
+        variable_selection_cv.fit(self.data, self.outcome.flatten())
+
+        # covariates from variable selection
+        selected_var = variable_selection_cv.support_
+        self.selected_variables = selected_var
+
+        # breakpoint()
+
+        regression_model.fit(
+            data[:, selected_var], outcomes.flatten())
+        self.model = regression_model
+
+    def get_action_probabilities(self, user_data):
+        # print("Recommending")
+        if isinstance(user_data, pd.core.series.Series):
+            user_data = user_data.to_numpy().reshape(1, -1)
+        else:
+            user_data = user_data.reshape(1, -1)
+
+        # pi(a|x)
+        pi = np.zeros(self.n_actions)
+        expected_reward = np.zeros(self.n_actions)
+
+        for a_t in range(self.n_actions):
+            expected_reward[a_t] = self.estimate_expected_conditional_reward(
+                user_data, a_t)
+
+        pi[np.argmax(expected_reward)] = 1
+
+        assert np.sum(pi) == 1
+
+        return pi
+
+    def predict_proba(self, data, treatment):
+        if isinstance(data, pd.core.series.Series):
+            data['a'] = treatment
+            user_array = data.to_numpy().reshape(1, -1)
+        else:
+            user_array = np.hstack((data.flatten(), treatment)).reshape(1, -1)
+
+        # P(y_t | a_t, x_t)
+        # breakpoint()
+        user_data = user_array.reshape(1, -1).flatten()
+        p = self.model.predict_proba(user_data)
+        return p[0]
+
+    def estimate_expected_conditional_reward(self, user_data, action):
+        """Estimates the expected reward conditional on an action.
+
+        Args:
+            user_data: the covariates of an observation
+            action: the selected action (a_t = a)
+
+        Returns:
+            The expected conditional reward E[r_t | a_t = a].
+        """
+        estimated_cond_utility = 0
+
+        # sum over possible outcomes for expected reward
+        for y_t in range(self.n_outcomes):
+            p_y = self.predict_proba(user_data.copy(), action)
+            estimated_cond_utility += p_y[y_t] * self.reward(action, y_t)
+
+        return estimated_cond_utility
+
+    def observe(self, user, action, outcome):
+        """Updates the data.
+
+        Args:
+            user: x_t
+            action: a_t
+            outcome: y_t
+        """
+        self.data = np.vstack((self.data, user))
+        self.actions = np.vstack((self.actions, action))
+        self.outcome = np.vstack((self.outcome, outcome))
 
 
 class ImprovedRecommender:
@@ -222,17 +335,33 @@ class ImprovedRecommender:
     # Observe the effect of an action. This is an opportunity for you
     # to refit your models, to take the new information into account.
     def observe(self, user, action, outcome):
-        """Updates the model based on new observation.
+        """Observe new observations dynamically. The improved recommender
+        will not utilize this, but saves the data.
 
+        Args:
+            user: covariates for a specific user
+            action: the action selected by the recommender/policy
+            outcome: the outcome y | a
         """
-        pass
+        self.recommender_model.observe(user, action, outcome)
 
     # After all the data has been obtained, do a final analysis. This can consist of a number of things:
     # 1. Recommending a specific fixed treatment policy
     # 2. Suggesting looking at specific genes more closely
     # 3. Showing whether or not the new treatment might be better than the old, and by how much.
     # 4. Outputting an estimate of the advantage of gene-targeting treatments versus the best fixed treatment
-    def final_analysis(self):
+    def final_analysis(self, n_tests=1000, generator=None):
+        analysis = FinalAnalysis()
+        # 1
+        print(f"1. Specific fixed treatment policy")
+        action_utilities = analysis.fixed_treatment_policy_check(
+            recommender=self, n_tests=n_tests, generator=generator)
+        for a_t in range(self.n_actions):
+            print(f"E[U | a = {a_t}] = {round(action_utilities[a_t, 1], 4)}")
+
+        # 2
+        print(f"2. Looking at specific genes more closely")
+
         return None
 
 
@@ -241,11 +370,23 @@ if __name__ == "__main__":
     n_actions = len(np.unique(data.a_train))
     n_outcomes = len(np.unique(data.y_train))
 
-    im_recommender = ImprovedRecommender(n_actions, n_outcomes)
-    im_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
-    im_recommender.fit_treatment_outcome(
-        data.x_train, data.a_train, data.y_train)
+    # im_recommender = ImprovedRecommender(n_actions, n_outcomes)
+    # im_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
+    # im_recommender.fit_treatment_outcome(
+    #     data.x_train, data.a_train, data.y_train)
 
-    im_estimated_utility = im_recommender.estimate_utility(
+    # im_estimated_utility = im_recommender.estimate_utility(
+    #     data.x_test, data.a_test, data.y_test)
+    # print(f"Estimated expected utility = {round(im_estimated_utility, 4)}")
+
+    im_recommender_varsel = ImprovedRecommender(n_actions, n_outcomes)
+    im_recommender_varsel.set_reward(lambda a, y: y - 0.1*(a != 0))
+    varsel_model = Approach1_impr_varsel(
+        im_recommender_varsel.n_actions, im_recommender_varsel.n_outcomes)
+    im_recommender_varsel.fit_treatment_outcome(
+        data.x_train, data.a_train, data.y_train, varsel_model)
+
+    im_varsel_estimated_utility = im_recommender_varsel.estimate_utility(
         data.x_test, data.a_test, data.y_test)
-    print(f"Estimated expected utility = {round(im_estimated_utility, 4)}")
+    print(
+        f"Estimated expected utility = {round(im_varsel_estimated_utility, 4)}")
