@@ -114,10 +114,10 @@ class Approach1_impr_varsel(RecommenderModel):
         selected_var = variable_selection_cv.support_
         self.selected_variables = selected_var
 
-        # breakpoint()
+        x_selected = np.hstack((data[:, selected_var], actions))
 
         regression_model.fit(
-            data[:, selected_var], outcomes.flatten())
+            x_selected, outcomes.flatten())
         self.model = regression_model
 
     def get_action_probabilities(self, user_data):
@@ -149,9 +149,10 @@ class Approach1_impr_varsel(RecommenderModel):
             user_array = np.hstack((data.flatten(), treatment)).reshape(1, -1)
 
         # P(y_t | a_t, x_t)
-        # breakpoint()
-        user_data = user_array.reshape(1, -1).flatten()
-        p = self.model.predict_proba(user_data)
+        selected = np.hstack((self.selected_variables, True))
+        user_data = user_array.flatten()
+
+        p = self.model.predict_proba(user_data[selected].reshape(1, -1))
         return p[0]
 
     def estimate_expected_conditional_reward(self, user_data, action):
@@ -242,10 +243,6 @@ class ImprovedRecommender:
 
         if isinstance(outcome, pd.DataFrame):
             outcome = outcome.to_numpy()
-
-        data = x
-        actions = actions
-        outcome = outcome
 
         x = np.hstack((x, actions))
 
@@ -370,23 +367,23 @@ if __name__ == "__main__":
     n_actions = len(np.unique(data.a_train))
     n_outcomes = len(np.unique(data.y_train))
 
-    # im_recommender = ImprovedRecommender(n_actions, n_outcomes)
-    # im_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
-    # im_recommender.fit_treatment_outcome(
-    #     data.x_train, data.a_train, data.y_train)
+    im_recommender = ImprovedRecommender(n_actions, n_outcomes)
+    im_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
+    im_recommender.fit_treatment_outcome(
+        data.x_train, data.a_train, data.y_train)
 
-    # im_estimated_utility = im_recommender.estimate_utility(
-    #     data.x_test, data.a_test, data.y_test)
-    # print(f"Estimated expected utility = {round(im_estimated_utility, 4)}")
-
-    im_recommender_varsel = ImprovedRecommender(n_actions, n_outcomes)
-    im_recommender_varsel.set_reward(lambda a, y: y - 0.1*(a != 0))
-    varsel_model = Approach1_impr_varsel(
-        im_recommender_varsel.n_actions, im_recommender_varsel.n_outcomes)
-    im_recommender_varsel.fit_treatment_outcome(
-        data.x_train, data.a_train, data.y_train, varsel_model)
-
-    im_varsel_estimated_utility = im_recommender_varsel.estimate_utility(
+    im_estimated_utility = im_recommender.estimate_utility(
         data.x_test, data.a_test, data.y_test)
-    print(
-        f"Estimated expected utility = {round(im_varsel_estimated_utility, 4)}")
+    print(f"Estimated expected utility = {round(im_estimated_utility, 4)}")
+
+    # im_recommender_varsel = ImprovedRecommender(n_actions, n_outcomes)
+    # im_recommender_varsel.set_reward(lambda a, y: y - 0.1*(a != 0))
+    # varsel_model = Approach1_impr_varsel(
+    #     im_recommender_varsel.n_actions, im_recommender_varsel.n_outcomes)
+    # im_recommender_varsel.fit_treatment_outcome(
+    #     data.x_train, data.a_train, data.y_train, varsel_model)
+
+    # im_varsel_estimated_utility = im_recommender_varsel.estimate_utility(
+    #     data.x_test, data.a_test, data.y_test)
+    # print(
+    #     f"Estimated expected utility = {round(im_varsel_estimated_utility, 4)}")
