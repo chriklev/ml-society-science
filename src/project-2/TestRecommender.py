@@ -2,7 +2,7 @@
 #import historical_recommender
 #import improved_recommender
 import random_recommender
-import logistic_recommender
+import chris_adaptive_recommender
 import data_generation
 import numpy as np
 import pandas
@@ -46,7 +46,7 @@ labels = features[:, 128] + features[:, 129]*2
 
 # policy_factory = improved_recommender.ImprovedRecommender
 
-policy_factory = logistic_recommender.LogisticRecommender
+policy_factory = chris_adaptive_recommender.LogisticRecommender
 
 #import reference_recommender
 #policy_factory = reference_recommender.HistoricalRecommender
@@ -65,7 +65,7 @@ policy.fit_treatment_outcome(features, actions, outcome)
 print("Running an online test")
 n_tests = 1000
 result = test_policy(generator, policy, default_reward_function, n_tests)
-print("Total reward:", result)
+#print("Total reward:", result)
 print("Final analysis of results")
 policy.final_analysis()
 
