@@ -52,7 +52,7 @@ policy.fit_treatment_outcome(features, actions, outcome)
 print("Running an online test")
 n_tests = 1000
 result = test_policy(generator, policy, default_reward_function, n_tests)
-print("Total reward:", result)
+#print("Total reward:", result)
 print("Final analysis of results")
 policy.final_analysis()
 
