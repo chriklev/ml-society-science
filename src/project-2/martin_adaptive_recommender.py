@@ -226,6 +226,9 @@ class Approach1_adap_thomp_explore(Approach1_adap_thomp):
 
 
 class Algorithm3:
+    """This is an implementation of algorithm 3 from Chapelle & Li. It is also
+    adapted from the tutorial of 'gdmarmerola' (see the report).
+    """
 
     def initialize(self, lam, parameters):
         """Initialize step in algorithm 3 from Chapelle and Li.
@@ -332,6 +335,11 @@ class Algorithm3:
     def predict_proba(self, x):
         """Predict probability of x, that is, P(y | a, x).
 
+        Args:
+            x: the covariates of an observation (context)
+
+        Returns
+            The probabilities for y = 0, y = 1
         """
         self.w = norm.rvs(loc=self.m, scale=1/self.q, size=self.p)
 
@@ -340,7 +348,7 @@ class Algorithm3:
 
         prob_array = np.zeros(2)
         prob_array[0] = 1 - prob1
-        prob_array[0] = prob1
+        prob_array[1] = prob1
         return prob_array
 
 
