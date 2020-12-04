@@ -126,3 +126,11 @@ if __name__ == "__main__":
     policy_model129.set_epsilon(0.05)
     multiple_action_test(ada_recommender129,
                          recommender_model=policy_model129, n_tests=2000)
+
+    """ ada_varsel_recommender129 = martin_adaptive_recommender.AdaptiveRecommender(
+        129, 2)
+    policy_model_varsel129 = martin_adaptive_recommender.Approach1_adap_thomp_eps_varsel(
+        129, 2)
+    policy_model_varsel129.set_epsilon(0.05)
+    multiple_action_test(ada_varsel_recommender129,
+                         recommender_model=policy_model_varsel129, n_tests=2000) """

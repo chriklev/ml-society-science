@@ -7,6 +7,8 @@ import attr
 from martin_historical_recommender import RecommenderModel
 from scipy.stats import norm, uniform
 from scipy.optimize import minimize
+from sklearn.feature_selection import RFECV
+from sklearn.model_selection import StratifiedKFold
 
 
 @attr.s
@@ -241,6 +243,65 @@ class Approach1_adap_thomp_explore(Approach1_adap_thomp):
 
         pi[a_star] = 1
         return pi
+
+
+@attr.s
+class Approach1_adap_thomp_eps_varsel(Approach1_adap_thomp_explore):
+
+    def fit_treatment_outcome(self, data, actions, outcomes):
+        """Fits the model with the historical data. This is the base model where
+        the adapative recommender will add observations sequentially.
+
+        Args:
+            data: the covariates for the users
+            actions: the selected (historical) actions for the users
+            outcomes: the observed (historical) outcomes for the users 
+        """
+        self.actions = actions
+        self.outcome = outcomes
+        self.data = data
+
+        regression_model = LogisticRegression(max_iter=5000, n_jobs=-1)
+
+        variable_selection_cv = RFECV(
+            estimator=regression_model, step=1, cv=StratifiedKFold(5, random_state=1, shuffle=True), n_jobs=-1, scoring='accuracy')
+
+        variable_selection_cv.fit(self.data, self.outcome.flatten())
+
+        # covariates from variable selection
+        selected_var = variable_selection_cv.support_
+        self.selected_variables = selected_var
+
+        x_selected = np.hstack((data[:, selected_var], actions))
+
+        alg3 = Algorithm3()
+        alg3.initialize(lam=0.2, parameters=len(x_selected[0]))
+        alg3.fit(x_selected, outcomes.flatten())
+        self.model = alg3
+
+    def predict_proba(self, data, treatment):
+        if isinstance(data, pd.core.series.Series):
+            data = data[self.selected_variables]
+            data['a'] = treatment
+            user_array = data.to_numpy().reshape(1, -1)
+        else:
+            user_array = np.hstack(
+                (data.flatten()[self.selected_variables], treatment)).reshape(1, -1)
+
+        # P(y_t | a_t, x_t)
+        p = self.model.predict_proba(user_array)
+        return p
+
+    def observe(self, user, action, outcome):
+        """Updates the model based on new observation.
+
+        Args:
+            user: x_t
+            action: a_t
+            outcome: y_t
+        """
+        x = np.array([np.hstack((user[self.selected_variables], action))])
+        self.model.fit(x, outcome)
 
 
 class Algorithm3:
@@ -541,7 +602,7 @@ if __name__ == "__main__":
     # Logistic regression with TS and explore #
     ###########################################
 
-    ada_ts_eps_recommender = AdaptiveRecommender(n_actions, n_outcomes)
+    """ ada_ts_eps_recommender = AdaptiveRecommender(n_actions, n_outcomes)
     ada_ts_eps_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
 
     thomp_policy_explore = Approach1_adap_thomp_explore(
@@ -554,4 +615,23 @@ if __name__ == "__main__":
     ada_ts_eps_estimated_utility = ada_ts_eps_recommender.estimate_utility(
         data.x_test, data.a_test, data.y_test, observe=True)
     print(
-        f"Estimated expected utility = {round(ada_ts_eps_estimated_utility, 4)}")
+        f"Estimated expected utility = {round(ada_ts_eps_estimated_utility, 4)}") """
+
+    ###############################################################
+    # Logistic regression with TS, explore and variable selection #
+    ###############################################################
+
+    ada_ts_eps_varsel_recommender = AdaptiveRecommender(n_actions, n_outcomes)
+    ada_ts_eps_varsel_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
+
+    thomp_policy_explore_varsel = Approach1_adap_thomp_eps_varsel(
+        ada_ts_eps_varsel_recommender.n_actions, ada_ts_eps_varsel_recommender.n_outcomes)
+    thomp_policy_explore_varsel.set_epsilon(epsilon=0.10)
+
+    ada_ts_eps_varsel_recommender.fit_treatment_outcome(
+        data.x_train, data.a_train, data.y_train, thomp_policy_explore_varsel)
+
+    ada_ts_eps_varsel_estimated_utility = ada_ts_eps_varsel_recommender.estimate_utility(
+        data.x_test, data.a_test, data.y_test, observe=True)
+    print(
+        f"Estimated expected utility = {round(ada_ts_eps_varsel_estimated_utility, 4)}")
