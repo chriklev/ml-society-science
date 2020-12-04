@@ -1,4 +1,4 @@
-from martin_adaptive_recommender import AdaptiveRecommender, Approach1_adap_thomp
+import reference_recommender
 import random_recommender
 import data_generation
 import numpy as np
@@ -14,7 +14,6 @@ def test_policy(generator, policy, reward_function, T):
     policy.set_reward(reward_function)
     u = 0
     for t in range(T):
-        print(f"{t}/{T}")
         x = generator.generate_features()
         a = policy.recommend(x)
         y = generator.generate_outcome(x, a)
@@ -22,7 +21,7 @@ def test_policy(generator, policy, reward_function, T):
         u += r
         policy.observe(x, a, y)
         # print(a)
-        #print("x: ", x, "a: ", a, "y:", y, "r:", r)
+        print("x: ", x, "a: ", a, "y:", y, "r:", r)
     return u
 
 
@@ -35,10 +34,8 @@ outcome = pandas.read_csv(
 observations = features[:, :128]
 labels = features[:, 128] + features[:, 129]*2
 
-#policy_factory = random_recommender.RandomRecommender
+policy_factory = random_recommender.RandomRecommender
 #policy_factory = reference_recommender.HistoricalRecommender
-
-policy_factory = AdaptiveRecommender
 
 # First test with the same number of treatments
 print("---- Testing with only two treatments ----")
@@ -50,16 +47,12 @@ print("Setting up policy")
 policy = policy_factory(generator.get_n_actions(), generator.get_n_outcomes())
 # Fit the policy on historical data first
 print("Fitting historical data to the policy")
-
-thomp_policy = Approach1_adap_thomp(
-    generator.get_n_actions(), generator.get_n_outcomes())
-
-policy.fit_treatment_outcome(features, actions, outcome, thomp_policy)
+policy.fit_treatment_outcome(features, actions, outcome)
 # Run an online test with a small number of actions
 print("Running an online test")
 n_tests = 1000
 result = test_policy(generator, policy, default_reward_function, n_tests)
-print("Total reward:", result)
+#print("Total reward:", result)
 print("Final analysis of results")
 policy.final_analysis()
 
@@ -72,11 +65,7 @@ print("Setting up policy")
 policy = policy_factory(generator.get_n_actions(), generator.get_n_outcomes())
 # Fit the policy on historical data first
 print("Fitting historical data to the policy")
-
-thomp_policy = Approach1_adap_thomp(
-    generator.get_n_actions(), generator.get_n_outcomes())
-
-policy.fit_treatment_outcome(features, actions, outcome, thomp_policy)
+policy.fit_treatment_outcome(features, actions, outcome)
 # Run an online test with a small number of actions
 print("Running an online test")
 n_tests = 1000
