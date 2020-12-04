@@ -97,26 +97,34 @@ class Approach1_adap_bl(RecommenderModel):
 class Approach1_adap_thomp(RecommenderModel):
 
     def fit_treatment_outcome(self, data, actions, outcomes):
-        """
+        """Fits the model with the historical data. This is the base model where
+        the adapative recommender will add observations sequentially.
 
+        Args:
+            data: the covariates for the users
+            actions: the selected (historical) actions for the users
+            outcomes: the observed (historical) outcomes for the users 
         """
-
         self.actions = actions
         self.outcome = outcomes
         self.data = data
-
         x = np.hstack((data.copy(), actions))
 
-        #regression_model.fit(x, outcomes.flatten())
         alg3 = Algorithm3()
-        alg3.initialize(lam=0.5, parameters=len(x[0]))
-        # breakpoint()
-        alg3.fit(x[0:5, ], outcomes.flatten()[0:5])
-
+        alg3.initialize(lam=0.2, parameters=len(x[0]))
+        alg3.fit(x, outcomes.flatten())
         self.model = alg3
 
     def get_action_probabilities(self, user_data):
-        # print("Recommending")
+        """Calculates the action probabilities based on one observation context
+        x_t.
+
+        Args: 
+            user_data: context (x_t) for one observation
+
+        Returns:
+            A ndarray of length equal to n_actions.
+        """
         if isinstance(user_data, pd.core.series.Series):
             user_data = user_data.to_numpy().reshape(1, -1)
         else:
@@ -131,9 +139,6 @@ class Approach1_adap_thomp(RecommenderModel):
                 user_data, a_t)
 
         pi[np.argmax(expected_reward)] = 1
-
-        assert np.sum(pi) == 1
-
         return pi
 
     def predict_proba(self, data, treatment):
@@ -145,7 +150,8 @@ class Approach1_adap_thomp(RecommenderModel):
 
         # P(y_t | a_t, x_t)
         p = self.model.predict_proba(user_array)
-        return p[0]
+
+        return p
 
     def estimate_expected_conditional_reward(self, user_data, action):
         """Estimates the expected reward conditional on an action.
@@ -159,9 +165,10 @@ class Approach1_adap_thomp(RecommenderModel):
         """
         estimated_cond_utility = 0
 
+        p_y = self.predict_proba(user_data.copy(), action)
+
         # sum over possible outcomes for expected reward
         for y_t in range(self.n_outcomes):
-            p_y = self.predict_proba(user_data.copy(), action)
             estimated_cond_utility += p_y[y_t] * self.reward(action, y_t)
 
         return estimated_cond_utility
@@ -169,15 +176,14 @@ class Approach1_adap_thomp(RecommenderModel):
     def observe(self, user, action, outcome):
         """Updates the model based on new observation.
 
+        Args:
+            user: x_t
+            action: a_t
+            outcome: y_t
         """
-        self.data = np.vstack((self.data, user))
-        self.actions = np.vstack((self.actions, action))
-        self.outcome = np.vstack((self.outcome, outcome))
 
-        x = np.hstack((self.data, self.actions))
-        self.model = self.model.fit(x, self.outcome.flatten())
-
-        self.policy = self.policy.fit(self.data, self.actions.flatten())
+        x = np.array([np.hstack((user, action))])
+        self.model.fit(x, outcome)
 
 
 class Algorithm3:
@@ -185,6 +191,11 @@ class Algorithm3:
     def initialize(self, lam, parameters):
         """Initialize step in algorithm 3 from Chapelle and Li.
 
+        Args:
+            lam: the initial inverse precision for each of the regression 
+                coefficients
+            parameters: the number of covariates used (in case of variable 
+                selection)
         """
         self.l = lam
         self.p = parameters
@@ -197,10 +208,19 @@ class Algorithm3:
     def argmin_w(self, w, x, y):
         """Second point in algorithm 3 from Chapelle and Li.
 
+        Args:
+            w: regression coefficients
+            x: covariates for a specific observation
+            y: the outcome
+
+        Returns:
+            The minimizing w.
         """
+        if len(x) == 1:
+            y = np.array([y])
+
         partial_sum = self.q * (w - self.m)
         obs_sum = 0
-
         for j in range(len(x)):
             obs_sum += np.log(1 + np.exp(-y[j] * w.dot(x[j])))
 
@@ -209,15 +229,33 @@ class Algorithm3:
         return w_temp
 
     def gradient_w(self, w, x, y):
-        """Gradient of w.
+        """Gradient of w, calculated in the report.
 
+        Args:
+            w: regression coefficients
+            x: context x_t
+            y: outcome y_t
+
+        Return
+            The value of the gradient grad(x, y).
         """
-        grad = self.q * (w - self.m) - (y*x)/(1 + np.exp(-y * w.dot(x)))
+
+        if len(x) == 1:
+            y = np.array([y])
+
+        partial_sum = 0
+        for j in range(len(x)):
+            partial_sum += (y[j]*x[j])/(1 + np.exp(-y[j] * w.dot(x[j])))
+
+        grad = self.q * (w - self.m) - partial_sum
         return grad
 
     def fit(self, x, y):
         """Performs one iteration of the fitting in algorithm 3.
 
+        Args:
+            x: the covariates (x_t)
+            y: the outcome (y_t)
         """
         # argmin w
         self.argmin_w(self.w, x, y)
@@ -225,20 +263,42 @@ class Algorithm3:
         self.w = minimize(self.argmin_w, self.w, args=(
             x, y), jac=self.gradient_w, method="Newton-CG")
 
-        self.m = self.w
+        self.m = self.w.x
+        self.update_q(self.m, x)
 
-        inner_product = self.w.dot(x)
-        p_i = (1+np.exp(-inner_product))**(-1)
-        self.q += (p_i*(1-p_i)).dot(x**2)
+    def update_q(self, w, x):
+        """Performs the updating of q in algorithm 3.
+
+        Args:
+            w: weights to be used in the logistic regression
+            x: context x_t
+        """
+        n = len(x)
+
+        # Laplace approximation, vector of length n
+        inner_product = x.dot(w)
+        p = (1+np.exp(-inner_product))**(-1)
+
+        # for each parameter
+        for i in range(self.p):
+            q = self.q[i]
+
+            # for each observation
+            for j in range(n):
+                q += (x[j, i]**2)*(p[j]*(1-p[j]))
+
+            # update variance
+            self.q[i] = q
 
     def predict_proba(self, x):
-        """Predict probability of x.
+        """Predict probability of x, that is, P(y | a, x).
 
         """
         self.w = norm.rvs(loc=self.m, scale=1/self.q, size=self.p)
 
         # logistic function
-        prob1 = 1/(1 + np.exp(- self.w.dot(x)))
+        prob1 = 1/(1 + np.exp(- self.w.dot(x.flatten())))
+
         prob_array = np.zeros(2)
         prob_array[0] = 1 - prob1
         prob_array[0] = prob1
@@ -290,7 +350,7 @@ class AdaptiveRecommender:
             actions: the action taken for each observation
             outcome: the outcome y_t | a_t, x_t
         """
-        print("Fitting treatment outcomes")
+        print("- Start fitting treatment outcomes")
 
         x = data.copy()
         if isinstance(data, pd.DataFrame):
@@ -312,6 +372,7 @@ class AdaptiveRecommender:
         recommender_model.fit_treatment_outcome(data, actions, outcome)
         recommender_model.set_reward(self.reward)
         self.recommender_model = recommender_model
+        print("- Stop fitting treatment outcomes")
 
     # Estimate the utility of a specific policy from historical data (data, actions, outcome),
     # where utility is the expected reward of the policy.
@@ -323,6 +384,7 @@ class AdaptiveRecommender:
     # to get an estimate of the utility.
     ##
     # The policy should be a recommender that implements get_action_probability()
+
     def estimate_utility(self, data, actions, outcome, policy=None, observe=False):
         T = len(actions)
         print(f"Estimating = {T} observations")
@@ -345,6 +407,7 @@ class AdaptiveRecommender:
             if observe:
                 self.observe(user_data, actions.iloc[t], outcome.iloc[t])
 
+        # breakpoint()
         return np.mean(utility)
 
     def estimate_expected_reward(self, user_data, pi):
@@ -433,6 +496,6 @@ if __name__ == "__main__":
         data.x_train, data.a_train, data.y_train, thomp_policy)
 
     ada_thomp_estimated_utility = ada_thomp_recommender.estimate_utility(
-        data.x_test.iloc[0:50, ], data.a_test.iloc[0:50, ], data.y_test.iloc[0:50], observe=True)
+        data.x_test.iloc[0:100, ], data.a_test.iloc[0:100, ], data.y_test.iloc[0:100, ], observe=True)
     print(
         f"Estimated expected utility = {round(ada_thomp_estimated_utility, 4)}")
