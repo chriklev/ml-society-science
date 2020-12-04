@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
     """ hist_recommender2 = martin_historical_recommender.HistoricalRecommender(
         2, 2)
-    two_action_test(hist_recommender2)
+    two_action_test(hist_recommender2) 
 
     hist_recommender129 = martin_historical_recommender.HistoricalRecommender(
         129, 2)
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     ############
 
     """ imp_recommender2 = martin_improved_recommender.ImprovedRecommender(2, 2)
-    two_action_test(imp_recommender2)
+    two_action_test(imp_recommender2) 
 
     imp_recommender129 = martin_improved_recommender.ImprovedRecommender(
         129, 2)
@@ -112,16 +112,17 @@ if __name__ == "__main__":
     ############
     # Adaptive #
     ############
-    ada_recommender2 = martin_adaptive_recommender.AdaptiveRecommender(2, 2)
+
+    """ ada_recommender2 = martin_adaptive_recommender.AdaptiveRecommender(2, 2)
     policy_model2 = martin_adaptive_recommender.Approach1_adap_thomp_explore(
         2, 2)
     policy_model2.set_epsilon(0.10)
-    two_action_test(ada_recommender2, recommender_model=policy_model2)
+    two_action_test(ada_recommender2, recommender_model=policy_model2) """
 
     ada_recommender129 = martin_adaptive_recommender.AdaptiveRecommender(
         129, 2)
     policy_model129 = martin_adaptive_recommender.Approach1_adap_thomp_explore(
         129, 2)
-    policy_model129.set_epsilon(0.10)
+    policy_model129.set_epsilon(0.05)
     multiple_action_test(ada_recommender129,
-                         recommender_model=policy_model129, n_tests=5000)
+                         recommender_model=policy_model129, n_tests=2000)

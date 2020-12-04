@@ -30,7 +30,6 @@ class Approach1_impr_bl(RecommenderModel):
         self.policy = policy_model
 
     def get_action_probabilities(self, user_data):
-        # print("Recommending")
         if isinstance(user_data, pd.core.series.Series):
             user_data = user_data.to_numpy().reshape(1, -1)
         else:
@@ -102,7 +101,6 @@ class Approach1_impr_varsel(RecommenderModel):
         self.outcome = outcomes
         self.data = data
 
-        x = np.hstack((data.copy(), actions))
         regression_model = LogisticRegression(max_iter=5000, n_jobs=-1)
 
         variable_selection_cv = RFECV(

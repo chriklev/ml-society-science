@@ -13,7 +13,13 @@ from scipy.optimize import minimize
 class Approach1_adap_bl(RecommenderModel):
 
     def fit_treatment_outcome(self, data, actions, outcomes):
+        """Fits the model to the historical data.
 
+        Args:
+            data: covariates x_t for each observation
+            actions: the action taken for historical observations a_t
+            outcomes: the observed outcomes for historical observations y_t
+        """
         self.actions = actions
         self.outcome = outcomes
         self.data = data
@@ -24,12 +30,16 @@ class Approach1_adap_bl(RecommenderModel):
         regression_model.fit(x, outcomes.flatten())
         self.model = regression_model
 
-        policy_model = LogisticRegression(max_iter=5000, n_jobs=-1)
-        policy_model.fit(data, actions.flatten())
-        self.policy = policy_model
-
     def get_action_probabilities(self, user_data):
-        # print("Recommending")
+        """Returns the action probabilities, will be 1 for the action with the 
+        highest expected reward.
+
+        Args:
+            user_data: observation x_t
+
+        Returns
+            An array of probabilities for the different actions.
+        """
         if isinstance(user_data, pd.core.series.Series):
             user_data = user_data.to_numpy().reshape(1, -1)
         else:
@@ -44,12 +54,18 @@ class Approach1_adap_bl(RecommenderModel):
                 user_data, a_t)
 
         pi[np.argmax(expected_reward)] = 1
-
-        assert np.sum(pi) == 1
-
         return pi
 
     def predict_proba(self, data, treatment):
+        """Calculates the probability of y, P(y | a, x).
+
+        Args:
+            data: observation context, x_t
+            treatment: selected action a_t
+
+        Returns
+            An array of probabilities for the different possible outcomes.
+        """
         if isinstance(data, pd.core.series.Series):
             data['a'] = treatment
             user_array = data.to_numpy().reshape(1, -1)
@@ -82,6 +98,10 @@ class Approach1_adap_bl(RecommenderModel):
     def observe(self, user, action, outcome):
         """Updates the model based on new observation.
 
+        Args:
+            user: x_t
+            action: a_t
+            outcome: y_t
         """
         self.data = np.vstack((self.data, user))
         self.actions = np.vstack((self.actions, action))
@@ -89,8 +109,6 @@ class Approach1_adap_bl(RecommenderModel):
 
         x = np.hstack((self.data, self.actions))
         self.model = self.model.fit(x, self.outcome.flatten())
-
-        self.policy = self.policy.fit(self.data, self.actions.flatten())
 
 
 @attr.s
@@ -180,7 +198,6 @@ class Approach1_adap_thomp(RecommenderModel):
             action: a_t
             outcome: y_t
         """
-
         x = np.array([np.hstack((user, action))])
         self.model.fit(x, outcome)
 
@@ -216,7 +233,8 @@ class Approach1_adap_thomp_explore(Approach1_adap_thomp):
                 user_data, a_t)
 
         # epsilon-based exploration
-        if uniform.rvs(loc=0, scale=1, size=1, random_state=1) < self.epsilon:
+        threshold = uniform.rvs(loc=0, scale=1, size=1)
+        if threshold < self.epsilon:
             a_star = np.random.choice(self.n_actions)
         else:
             a_star = np.argmax(expected_reward)
@@ -300,12 +318,11 @@ class Algorithm3:
             y: the outcome (y_t)
         """
         # argmin w
-        self.argmin_w(self.w, x, y)
+        argmin_w_result = minimize(self.argmin_w, self.w, args=(
+            x, y), jac=self.gradient_w, method="Newton-CG").x
 
-        self.w = minimize(self.argmin_w, self.w, args=(
-            x, y), jac=self.gradient_w, method="Newton-CG")
-
-        self.m = self.w.x
+        self.w = argmin_w_result
+        self.m = argmin_w_result
         self.update_q(self.m, x)
 
     def update_q(self, w, x):
@@ -349,6 +366,8 @@ class Algorithm3:
         prob_array = np.zeros(2)
         prob_array[0] = 1 - prob1
         prob_array[1] = prob1
+        # print(
+        #    f"p(y = 0) = {round(prob_array[0], 4)}, p(y = 1) = {round(prob_array[1], 4)}")
         return prob_array
 
 
@@ -404,17 +423,6 @@ class AdaptiveRecommender:
         self.recommender_model = recommender_model
         print("- Stop fitting treatment outcomes")
 
-    # Estimate the utility of a specific policy from historical data (data, actions, outcome),
-    # where utility is the expected reward of the policy.
-    ##
-    # If policy is not given, simply use the average reward of the observed actions and outcomes.
-    ##
-    # If a policy is given, then you can either use importance
-    # sampling, or use the model you have fitted from historical data
-    # to get an estimate of the utility.
-    ##
-    # The policy should be a recommender that implements get_action_probability()
-
     def estimate_utility(self, data, actions, outcome, policy=None, observe=False):
         T = len(actions)
         print(f"Estimating = {T} observations")
@@ -437,7 +445,6 @@ class AdaptiveRecommender:
             if observe:
                 self.observe(user_data, actions.iloc[t], outcome.iloc[t])
 
-        # breakpoint()
         return np.mean(utility)
 
     def estimate_expected_reward(self, user_data, pi):
