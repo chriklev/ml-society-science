@@ -5,7 +5,7 @@ from part1 import MedicalData
 import pandas as pd
 import attr
 from martin_historical_recommender import RecommenderModel
-from scipy.stats import norm
+from scipy.stats import norm, uniform
 from scipy.optimize import minimize
 
 
@@ -150,7 +150,6 @@ class Approach1_adap_thomp(RecommenderModel):
 
         # P(y_t | a_t, x_t)
         p = self.model.predict_proba(user_array)
-
         return p
 
     def estimate_expected_conditional_reward(self, user_data, action):
@@ -184,6 +183,46 @@ class Approach1_adap_thomp(RecommenderModel):
 
         x = np.array([np.hstack((user, action))])
         self.model.fit(x, outcome)
+
+
+@attr.s
+class Approach1_adap_thomp_explore(Approach1_adap_thomp):
+
+    def set_epsilon(self, epsilon):
+        self.epsilon = epsilon
+
+    def get_action_probabilities(self, user_data):
+        """Calculates the action probabilities based on one observation context
+        x_t. Uses epsilon-based exploration to occasionally select a random 
+        action.
+
+        Args: 
+            user_data: context (x_t) for one observation
+
+        Returns:
+            A ndarray of length equal to n_actions.
+        """
+        if isinstance(user_data, pd.core.series.Series):
+            user_data = user_data.to_numpy().reshape(1, -1)
+        else:
+            user_data = user_data.reshape(1, -1)
+
+        # pi(a|x)
+        pi = np.zeros(self.n_actions)
+        expected_reward = np.zeros(self.n_actions)
+
+        for a_t in range(self.n_actions):
+            expected_reward[a_t] = self.estimate_expected_conditional_reward(
+                user_data, a_t)
+
+        # epsilon-based exploration
+        if uniform.rvs(loc=0, scale=1, size=1, random_state=1) < self.epsilon:
+            a_star = np.random.choice(self.n_actions)
+        else:
+            a_star = np.argmax(expected_reward)
+
+        pi[a_star] = 1
+        return pi
 
 
 class Algorithm3:
@@ -307,12 +346,6 @@ class Algorithm3:
 
 class AdaptiveRecommender:
 
-    #################################
-    # Initialise
-    #
-    # Set the recommender with a default number of actions and outcomes.  This is
-    # because the number of actions in historical data can be
-    # different from the ones that you can take with your policy.
     def __init__(self, n_actions, n_outcomes):
         self.n_actions = n_actions
         self.n_outcomes = n_outcomes
@@ -326,21 +359,10 @@ class AdaptiveRecommender:
     def set_reward(self, reward):
         self.reward = reward
 
-    ##################################
-    # Fit a model from patient data.
-    #
-    # This will generally speaking be an
-    # unsupervised model. Anything from a Gaussian mixture model to a
-    # neural network is a valid choice.  However, you can give special
-    # meaning to different parts of the data, and use a supervised
-    # model instead.
     def fit_data(self, data):
         print("Preprocessing data")
         return None
 
-    # Fit a model from patient data, actions and their effects
-    # Here we assume that the outcome is a direct function of data and actions
-    # This model can then be used in estimate_utility(), predict_proba() and recommend()
     def fit_treatment_outcome(self, data, actions, outcome, recommender_model=None):
         """Fits historical data to the policy. Includes the action as a 
         covariate in the logistic regression model.
@@ -431,17 +453,12 @@ class AdaptiveRecommender:
 
         return estimated_utility
 
-    # Return a distribution of effects for a given person's data and a specific treatment.
-    # This should be an numpy.array of length self.n_outcomes
-
     def predict_proba(self, data, treatment):
         """Calculates the conditional probability P(y | a, x).
 
         """
         return self.recommender_model.predict_proba(data, treatment)
 
-    # Return a distribution of recommendations for a specific user datum
-    # This should a numpy array of size equal to self.n_actions, summing up to 1
     def get_action_probabilities(self, user_data):
         """Calculates the conditional distribution of actions pi(a_t | x_t).
 
@@ -450,13 +467,9 @@ class AdaptiveRecommender:
         """
         return self.recommender_model.get_action_probabilities(user_data)
 
-    # Return recommendations for a specific user datum
-    # This should be an integer in range(self.n_actions)
     def recommend(self, user_data):
         return np.random.choice(self.n_actions, p=self.get_action_probabilities(user_data))
 
-    # Observe the effect of an action. This is an opportunity for you
-    # to refit your models, to take the new information into account.
     def observe(self, user, action, outcome):
         """Updates the model based on new observation.
 
@@ -477,16 +490,25 @@ if __name__ == "__main__":
     n_actions = len(np.unique(data.a_train))
     n_outcomes = len(np.unique(data.y_train))
 
-    # ada_recommender = AdaptiveRecommender(n_actions, n_outcomes)
-    # ada_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
-    # ada_recommender.fit_treatment_outcome(
-    #     data.x_train, data.a_train, data.y_train)
+    ######################
+    # Logistic-Bernoulli #
+    ######################
 
-    # ada_estimated_utility = ada_recommender.estimate_utility(
-    #     data.x_test.iloc[0:50, ], data.a_test.iloc[0:50, ], data.y_test.iloc[0:50], observe=True)
-    # print(f"Estimated expected utility = {round(ada_estimated_utility, 4)}")
+    """ ada_recommender = AdaptiveRecommender(n_actions, n_outcomes)
+    ada_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
+    ada_recommender.fit_treatment_outcome(
+        data.x_train, data.a_train, data.y_train)
 
-    ada_thomp_recommender = AdaptiveRecommender(n_actions, n_outcomes)
+    ada_estimated_utility = ada_recommender.estimate_utility(
+        data.x_test.iloc[0:50, ], data.a_test.iloc[0:50, ], data.y_test.iloc[0:50], observe=True)
+    print(f"Estimated expected utility = {round(ada_estimated_utility, 4)}")
+    """
+
+    ###############################
+    # Logistic regression with TS #
+    ###############################
+
+    """ ada_thomp_recommender = AdaptiveRecommender(n_actions, n_outcomes)
     ada_thomp_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
 
     thomp_policy = Approach1_adap_thomp(
@@ -496,6 +518,25 @@ if __name__ == "__main__":
         data.x_train, data.a_train, data.y_train, thomp_policy)
 
     ada_thomp_estimated_utility = ada_thomp_recommender.estimate_utility(
-        data.x_test.iloc[0:100, ], data.a_test.iloc[0:100, ], data.y_test.iloc[0:100, ], observe=True)
+        data.x_test, data.a_test, data.y_test, observe=True)
     print(
-        f"Estimated expected utility = {round(ada_thomp_estimated_utility, 4)}")
+        f"Estimated expected utility = {round(ada_thomp_estimated_utility, 4)}") """
+
+    ###########################################
+    # Logistic regression with TS and explore #
+    ###########################################
+
+    ada_ts_eps_recommender = AdaptiveRecommender(n_actions, n_outcomes)
+    ada_ts_eps_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
+
+    thomp_policy_explore = Approach1_adap_thomp_explore(
+        ada_ts_eps_recommender.n_actions, ada_ts_eps_recommender.n_outcomes)
+    thomp_policy_explore.set_epsilon(epsilon=0.10)
+
+    ada_ts_eps_recommender.fit_treatment_outcome(
+        data.x_train, data.a_train, data.y_train, thomp_policy_explore)
+
+    ada_ts_eps_estimated_utility = ada_ts_eps_recommender.estimate_utility(
+        data.x_test, data.a_test, data.y_test, observe=True)
+    print(
+        f"Estimated expected utility = {round(ada_ts_eps_estimated_utility, 4)}")
