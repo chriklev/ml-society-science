@@ -1,5 +1,6 @@
 import attr
 import numpy as np
+import pandas as pd
 
 
 @attr.s
@@ -13,6 +14,38 @@ class RecommenderModel:
 
     def set_reward(self, reward):
         self.reward = reward
+    
+    def get_action_matrix(self, n_obs, actions):
+        """Gets the action matrix from the column of actions.
+
+        Args:
+            n_obs: number of observations
+            actions: the action vector
+
+        Return
+            ndarray of actions.
+        """
+        action_matrix = np.zeros((n_obs, self.n_actions))
+        for a_t in range(self.n_actions):
+            act_t = (actions == a_t)*1
+            if isinstance(act_t, pd.core.series.Series):
+                act_t = act_t.to_numpy()
+            action_matrix[:, a_t] = act_t.flatten()
+        
+        return action_matrix
+    
+    def get_treatment_vector(self, treatment):
+        """Gets the treatment vector for a specific observation.
+
+        Args:
+            treatment: the selected treatment
+
+        Returns
+            A ndarray representing the treatment.
+        """
+        treatment_vector = np.zeros(self.n_actions)
+        treatment_vector[treatment] = 1
+        return treatment_vector
 
 
 @attr.s

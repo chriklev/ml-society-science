@@ -22,11 +22,14 @@ class Approach1_adap_bl(RecommenderModel):
             actions: the action taken for historical observations a_t
             outcomes: the observed outcomes for historical observations y_t
         """
-        self.actions = actions
+        
         self.outcome = outcomes
         self.data = data
 
-        x = np.hstack((data.copy(), actions))
+        action_matrix = self.get_action_matrix(len(data), actions)
+        self.actions = action_matrix
+
+        x = np.hstack((data.copy(), action_matrix))
         regression_model = LogisticRegression(max_iter=5000, n_jobs=-1)
 
         regression_model.fit(x, outcomes.flatten())
@@ -68,11 +71,13 @@ class Approach1_adap_bl(RecommenderModel):
         Returns
             An array of probabilities for the different possible outcomes.
         """
+        treatment_vector = self.get_treatment_vector(treatment)
+
         if isinstance(data, pd.core.series.Series):
-            data['a'] = treatment
-            user_array = data.to_numpy().reshape(1, -1)
+            x_t = data.to_numpy()
+            user_array = np.hstack((x_t, treatment_vector)).reshape(1, -1)
         else:
-            user_array = np.hstack((data.flatten(), treatment)).reshape(1, -1)
+            user_array = np.hstack((data.flatten(), treatment_vector)).reshape(1, -1)
 
         # P(y_t | a_t, x_t)
         p = self.model.predict_proba(user_array)
@@ -106,7 +111,8 @@ class Approach1_adap_bl(RecommenderModel):
             outcome: y_t
         """
         self.data = np.vstack((self.data, user))
-        self.actions = np.vstack((self.actions, action))
+        action_matrix = self.get_action_matrix(1, action)
+        self.actions = np.vstack((self.actions, action_matrix))
         self.outcome = np.vstack((self.outcome, outcome))
 
         x = np.hstack((self.data, self.actions))
@@ -128,7 +134,10 @@ class Approach1_adap_thomp(RecommenderModel):
         self.actions = actions
         self.outcome = outcomes
         self.data = data
-        x = np.hstack((data.copy(), actions))
+
+        action_matrix = self.get_action_matrix(len(data), actions)
+        self.actions = action_matrix
+        x = np.hstack((data.copy(), action_matrix))
 
         alg3 = Algorithm3()
         alg3.initialize(lam=0.2, parameters=len(x[0]))
@@ -162,11 +171,23 @@ class Approach1_adap_thomp(RecommenderModel):
         return pi
 
     def predict_proba(self, data, treatment):
+        """Predicts P(y|a, x).
+
+        Args:
+            data: x_t
+            treatment: a_t
+        
+        Returns
+            An array of probabilities conditioned on a, x.
+        """
+        treatment_vector = self.get_treatment_vector(treatment)
+
         if isinstance(data, pd.core.series.Series):
-            data['a'] = treatment
-            user_array = data.to_numpy().reshape(1, -1)
+            x_t = data.to_numpy()
+            user_array = np.hstack((x_t, treatment_vector)).reshape(1, -1)
+
         else:
-            user_array = np.hstack((data.flatten(), treatment)).reshape(1, -1)
+            user_array = np.hstack((data.flatten(), treatment_vector)).reshape(1, -1)
 
         # P(y_t | a_t, x_t)
         p = self.model.predict_proba(user_array)
@@ -200,7 +221,8 @@ class Approach1_adap_thomp(RecommenderModel):
             action: a_t
             outcome: y_t
         """
-        x = np.array([np.hstack((user, action))])
+        a_vector = self.get_treatment_vector(action)
+        x = np.array([np.hstack((user, a_vector))])
         self.model.fit(x, outcome)
 
 
@@ -257,7 +279,6 @@ class Approach1_adap_thomp_eps_varsel(Approach1_adap_thomp_explore):
             actions: the selected (historical) actions for the users
             outcomes: the observed (historical) outcomes for the users 
         """
-        self.actions = actions
         self.outcome = outcomes
         self.data = data
 
@@ -272,7 +293,10 @@ class Approach1_adap_thomp_eps_varsel(Approach1_adap_thomp_explore):
         selected_var = variable_selection_cv.support_
         self.selected_variables = selected_var
 
-        x_selected = np.hstack((data[:, selected_var], actions))
+        action_matrix = self.get_action_matrix(len(data), actions)
+        self.actions = action_matrix
+
+        x_selected = np.hstack((data[:, selected_var], action_matrix))
 
         alg3 = Algorithm3()
         alg3.initialize(lam=0.2, parameters=len(x_selected[0]))
@@ -280,13 +304,23 @@ class Approach1_adap_thomp_eps_varsel(Approach1_adap_thomp_explore):
         self.model = alg3
 
     def predict_proba(self, data, treatment):
+        """Predicts the probability P(y|a, x) given the selected variables.
+
+        Args:
+            data: x_t
+            treatment: a_t
+        
+        Returns
+            The probabilities for the different y.
+        """
+        treatment_vector = self.get_treatment_vector(treatment)
         if isinstance(data, pd.core.series.Series):
-            data = data[self.selected_variables]
-            data['a'] = treatment
-            user_array = data.to_numpy().reshape(1, -1)
+            x_t = data.to_numpy()
+            flat_data = x_t.flatten()
         else:
-            user_array = np.hstack(
-                (data.flatten()[self.selected_variables], treatment)).reshape(1, -1)
+            flat_data = data.flatten()
+        
+        user_array = np.hstack((flat_data[self.selected_variables], treatment_vector)).reshape(1, -1)
 
         # P(y_t | a_t, x_t)
         p = self.model.predict_proba(user_array)
@@ -300,7 +334,8 @@ class Approach1_adap_thomp_eps_varsel(Approach1_adap_thomp_explore):
             action: a_t
             outcome: y_t
         """
-        x = np.array([np.hstack((user[self.selected_variables], action))])
+        a_vector = self.get_treatment_vector(action)
+        x = np.array([np.hstack((user[self.selected_variables], a_vector))])
         self.model.fit(x, outcome)
 
 
@@ -420,7 +455,7 @@ class Algorithm3:
             The probabilities for y = 0, y = 1
         """
         self.w = norm.rvs(loc=self.m, scale=1/self.q, size=self.p)
-
+       #breakpoint()
         # logistic function
         prob1 = 1/(1 + np.exp(- self.w.dot(x.flatten())))
 
@@ -576,9 +611,9 @@ if __name__ == "__main__":
         data.x_train, data.a_train, data.y_train)
 
     ada_estimated_utility = ada_recommender.estimate_utility(
-        data.x_test.iloc[0:50, ], data.a_test.iloc[0:50, ], data.y_test.iloc[0:50], observe=True)
-    print(f"Estimated expected utility = {round(ada_estimated_utility, 4)}")
-    """
+        data.x_test, data.a_test, data.y_test, observe=True)
+    print(f"Estimated expected utility = {round(ada_estimated_utility, 4)}") """
+   
 
     ###############################
     # Logistic regression with TS #

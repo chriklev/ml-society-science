@@ -8,6 +8,7 @@ from martin_historical_recommender import RecommenderModel
 import pandas as pd
 from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
 from sklearn.feature_selection import RFECV
+from sklearn.preprocessing import OneHotEncoder
 
 
 @attr.s
@@ -19,7 +20,9 @@ class Approach1_impr_bl(RecommenderModel):
         self.outcome = outcomes
         self.data = data
 
-        x = np.hstack((data.copy(), actions))
+        action_matrix = self.get_action_matrix(len(data), actions)
+
+        x = np.hstack((data.copy(), action_matrix))
         regression_model = LogisticRegression(max_iter=5000, n_jobs=-1)
 
         regression_model.fit(x, outcomes.flatten())
@@ -50,11 +53,22 @@ class Approach1_impr_bl(RecommenderModel):
         return pi
 
     def predict_proba(self, data, treatment):
+        """Predicts the probability of y.
+
+        Args:
+            data: x_t
+            treatment: a_t
+
+        Returns:
+            P(y | a, x).
+        """
+        treatment_vector = self.get_treatment_vector(treatment)
+
         if isinstance(data, pd.core.series.Series):
-            data['a'] = treatment
-            user_array = data.to_numpy().reshape(1, -1)
+            x_t = data.to_numpy()
+            user_array = np.hstack((x_t, treatment_vector)).reshape(1, -1)
         else:
-            user_array = np.hstack((data.flatten(), treatment)).reshape(1, -1)
+            user_array = np.hstack((data.flatten(), treatment_vector)).reshape(1, -1)
 
         # P(y_t | a_t, x_t)
         p = self.model.predict_proba(user_array)
@@ -112,7 +126,12 @@ class Approach1_impr_varsel(RecommenderModel):
         selected_var = variable_selection_cv.support_
         self.selected_variables = selected_var
 
-        x_selected = np.hstack((data[:, selected_var], actions))
+        action_matrix = self.get_action_matrix(len(data), actions)
+
+        if isinstance(data, pd.DataFrame):
+            x_selected = np.hstack((data.iloc[:, selected_var], action_matrix))
+        else:
+            x_selected = np.hstack((data[:, selected_var], action_matrix))
 
         regression_model.fit(
             x_selected, outcomes.flatten())
@@ -135,21 +154,30 @@ class Approach1_impr_varsel(RecommenderModel):
 
         pi[np.argmax(expected_reward)] = 1
 
-        assert np.sum(pi) == 1
-
         return pi
 
     def predict_proba(self, data, treatment):
+        """Predicts the probability of y.
+
+        Args:
+            data: x_t
+            treatment: a_t
+
+        Returns:
+            P(y | a, x).
+        """
+        treatment_vector = self.get_treatment_vector(treatment)
+
         if isinstance(data, pd.core.series.Series):
-            data['a'] = treatment
-            user_array = data.to_numpy().reshape(1, -1)
+            x_t = data.to_numpy()
+            user_array = np.hstack((x_t, treatment_vector)).reshape(1, -1)
         else:
-            user_array = np.hstack((data.flatten(), treatment)).reshape(1, -1)
+            user_array = np.hstack((data.flatten(), treatment_vector)).reshape(1, -1)
 
         # P(y_t | a_t, x_t)
-        selected = np.hstack((self.selected_variables, True))
+        selected = np.hstack((self.selected_variables, np.repeat(True, self.n_actions)))
         user_data = user_array.flatten()
-
+    
         p = self.model.predict_proba(user_data[selected].reshape(1, -1))
         return p[0]
 
@@ -365,23 +393,23 @@ if __name__ == "__main__":
     n_actions = len(np.unique(data.a_train))
     n_outcomes = len(np.unique(data.y_train))
 
-    im_recommender = ImprovedRecommender(n_actions, n_outcomes)
-    im_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
-    im_recommender.fit_treatment_outcome(
-        data.x_train, data.a_train, data.y_train)
+    # im_recommender = ImprovedRecommender(n_actions, n_outcomes)
+    # im_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
+    # im_recommender.fit_treatment_outcome(
+    #     data.x_train, data.a_train, data.y_train)
 
-    im_estimated_utility = im_recommender.estimate_utility(
-        data.x_test, data.a_test, data.y_test)
-    print(f"Estimated expected utility = {round(im_estimated_utility, 4)}")
-
-    # im_recommender_varsel = ImprovedRecommender(n_actions, n_outcomes)
-    # im_recommender_varsel.set_reward(lambda a, y: y - 0.1*(a != 0))
-    # varsel_model = Approach1_impr_varsel(
-    #     im_recommender_varsel.n_actions, im_recommender_varsel.n_outcomes)
-    # im_recommender_varsel.fit_treatment_outcome(
-    #     data.x_train, data.a_train, data.y_train, varsel_model)
-
-    # im_varsel_estimated_utility = im_recommender_varsel.estimate_utility(
+    # im_estimated_utility = im_recommender.estimate_utility(
     #     data.x_test, data.a_test, data.y_test)
-    # print(
-    #     f"Estimated expected utility = {round(im_varsel_estimated_utility, 4)}")
+    # print(f"Estimated expected utility = {round(im_estimated_utility, 4)}")
+
+    im_recommender_varsel = ImprovedRecommender(n_actions, n_outcomes)
+    im_recommender_varsel.set_reward(lambda a, y: y - 0.1*(a != 0))
+    varsel_model = Approach1_impr_varsel(
+        im_recommender_varsel.n_actions, im_recommender_varsel.n_outcomes)
+    im_recommender_varsel.fit_treatment_outcome(
+        data.x_train, data.a_train, data.y_train, varsel_model)
+
+    im_varsel_estimated_utility = im_recommender_varsel.estimate_utility(
+        data.x_test, data.a_test, data.y_test)
+    print(
+        f"Estimated expected utility = {round(im_varsel_estimated_utility, 4)}")
