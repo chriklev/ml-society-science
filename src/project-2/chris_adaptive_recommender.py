@@ -24,7 +24,7 @@ from sklearn.linear_model import LogisticRegression
 import numpy as np
 
 
-class LogisticRecommender:
+class AdaptiveLogisticRecommender:
 
     #################################
     # Initialise
@@ -110,7 +110,7 @@ class LogisticRecommender:
 
             utility_total += np.max(action_rewards)
 
-        return utility_total
+        return utility_total/len(actions)
 
     def predict_proba(self, data, treatment):
         """ Predicts the distribution of outcomes given features and a treatment.
