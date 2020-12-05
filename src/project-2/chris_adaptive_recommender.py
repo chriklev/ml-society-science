@@ -24,7 +24,7 @@ from sklearn.linear_model import LogisticRegression
 import numpy as np
 
 
-class LogisticRecommender:
+class AdaptiveLogisticRecommender:
 
     #################################
     # Initialise
