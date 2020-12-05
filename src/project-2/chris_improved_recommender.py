@@ -75,14 +75,16 @@ class LogisticRecommender:
             ind = actions == a
 
             self.models[a] = LogisticRegression(
-                penalty='l2', multi_class='ovr', max_iter=200)
+                penalty='l2', max_iter=200)
             action_data = data[ind, :]
+            action_outcome = outcome[ind]
             # See if there are any observations with current action.
-            if action_data.shape[0] > 0:
+            if action_data.shape[0] > 1 and np.unique(action_outcome).size > 1:
                 self.models[a].fit(action_data, outcome[ind])
             # If not, create placeholder fit to not break the other methods.
             else:
-                self.models[a].fit((1, np.zeros(action_data.shape[1]), 0))
+                self.models[a].fit(
+                    np.zeros((2, action_data.shape[1])), np.array([0, 1]))
 
     def estimate_utility(self, data, actions, outcome):
         """ Calculates estimated utility for this reccomender.
