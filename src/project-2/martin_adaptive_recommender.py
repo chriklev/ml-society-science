@@ -22,7 +22,6 @@ class Approach1_adap_bl(RecommenderModel):
             actions: the action taken for historical observations a_t
             outcomes: the observed outcomes for historical observations y_t
         """
-        
         self.outcome = outcomes
         self.data = data
 
@@ -455,15 +454,13 @@ class Algorithm3:
             The probabilities for y = 0, y = 1
         """
         self.w = norm.rvs(loc=self.m, scale=1/self.q, size=self.p)
-       #breakpoint()
+
         # logistic function
         prob1 = 1/(1 + np.exp(- self.w.dot(x.flatten())))
 
         prob_array = np.zeros(2)
         prob_array[0] = 1 - prob1
         prob_array[1] = prob1
-        # print(
-        #    f"p(y = 0) = {round(prob_array[0], 4)}, p(y = 1) = {round(prob_array[1], 4)}")
         return prob_array
 
 
@@ -476,13 +473,30 @@ class AdaptiveRecommender:
 
     # By default, the reward is just equal to the outcome, as the actions play no role.
     def _default_reward(self, action, outcome):
+        """Sets the default reward equal to the outcome.
+
+        Args:
+            action: a
+            outcome: y
+        """
         return outcome
 
     # Set the reward function r(a, y)
     def set_reward(self, reward):
+        """Sets a specific reward function.
+
+        Args:
+            reward: a function accepting action and outcome (a, y) in order to
+                calculate the reward
+        """
         self.reward = reward
 
     def fit_data(self, data):
+        """Fits an unsupervised model to the data.
+
+        Args:
+            data: the observations (x_t)
+        """
         print("Preprocessing data")
         return None
 

@@ -228,10 +228,22 @@ class ImprovedRecommender:
 
     # By default, the reward is just equal to the outcome, as the actions play no role.
     def _default_reward(self, action, outcome):
+        """Sets the default reward equal to the outcome.
+
+        Args:
+            action: a
+            outcome: y
+        """
         return outcome
 
     # Set the reward function r(a, y)
     def set_reward(self, reward):
+        """Sets a specific reward function.
+
+        Args:
+            reward: a function accepting action and outcome (a, y) in order to
+                calculate the reward
+        """
         self.reward = reward
 
     ##################################
@@ -243,6 +255,11 @@ class ImprovedRecommender:
     # meaning to different parts of the data, and use a supervised
     # model instead.
     def fit_data(self, data):
+        """Fits an unsupervised model to the data.
+
+        Args:
+            data: the observations (x_t)
+        """
         print("Preprocessing data")
         return None
 

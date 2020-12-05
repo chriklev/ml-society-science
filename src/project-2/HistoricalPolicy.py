@@ -171,10 +171,6 @@ class HistoricalPolicy:
                     probs=find_probs(a)), reinterpreted_batch_ndims=1)
         })
 
-        # samples = [model.sample() for _ in range(n_samples)]
-        # a_samples = [samples[_]['a'].numpy() for _ in range(len(samples))]
-        # y_samples = [samples[_]['y'].numpy() for _ in range(len(samples))]
-
         samples = model.sample(n_samples)
         a_samples = samples['a'].numpy().flatten()
         y_samples = samples['y'].numpy().flatten()
@@ -188,10 +184,6 @@ class HistoricalPolicy:
             rep: number of repetitions
             n: number of observations to sample
         """
-
-        # number of sample observations
-        # n = len(self.actions)
-
         # expected utilities
         expected_U = np.empty(shape=(rep, n))
 
@@ -245,7 +237,6 @@ class HistoricalPolicy:
 
         lower_ci = int(round(np.ceil((alpha*(rep+1)/2))))
         upper_ci = rep - lower_ci
-        middle_idx = round(rep/2)
 
         for i in range(repeats):
             expected_utilities = self.estimate_expected_utility(rep, n)
@@ -253,7 +244,6 @@ class HistoricalPolicy:
 
             sorted_mean = np.sort(mean)
 
-            #repetitions[i] = sorted_mean[middle_idx]
             repetitions[i] = np.mean(mean)
             percentile_ci[0, i] = sorted_mean[lower_ci]
             percentile_ci[1, i] = sorted_mean[upper_ci]
