@@ -23,7 +23,9 @@ class Approach1_hist_bl(RecommenderModel):
         self.outcome = outcomes
         self.data = data
 
-        x = np.hstack((data.copy(), actions))
+        action_matrix = self.get_action_matrix(len(data), actions)
+
+        x = np.hstack((data.copy(), action_matrix))
         regression_model = LogisticRegression(max_iter=5000, n_jobs=-1)
 
         regression_model.fit(x, outcomes.flatten())
@@ -34,7 +36,14 @@ class Approach1_hist_bl(RecommenderModel):
         self.policy = policy_model
 
     def get_action_probabilities(self, user_data):
-        # print("Recommending")
+        """Calculates the action probabilities using a stochastic policy.
+
+        Args:
+            user_data: an observation x_t
+        
+        Returns
+            The distribution pi(a|x).
+        """
         if isinstance(user_data, pd.core.series.Series):
             user_data = user_data.to_numpy().reshape(1, -1)
         else:
@@ -49,24 +58,32 @@ class Approach1_hist_bl(RecommenderModel):
         for a_t in range(len(predictions[0])):
             pi[a_t] = predictions[0][a_t]
 
-        assert np.sum(pi) == 1
-
         return pi
 
     def predict_proba(self, data, treatment):
+        """Estimates P(y|a, x).
+
+        Args:
+            data: x_t
+            treatment: a_t
+        
+        Returns
+            An array of probabilities indexed by y_t.
+        """
+        treatment_vector = self.get_treatment_vector(treatment)
 
         if isinstance(data, pd.core.series.Series):
-            data['a'] = treatment
-            user_array = data.to_numpy().reshape(1, -1)
+            x_t = data.to_numpy()
+            user_array = np.hstack((x_t, treatment_vector)).reshape(1, -1)
         else:
-            user_array = np.hstack((data, treatment)).reshape(1, -1)
+            user_array = np.hstack((data.flatten(), treatment_vector)).reshape(1, -1)
 
         p = self.model.predict_proba(user_array)
 
         return p[0]
 
     def observe(self, user, action, outcome):
-        """Updates the data.
+        """Stores the observations, but does not update not the model.
 
         Args:
             user: x_t
@@ -87,16 +104,38 @@ class HistoricalRecommender:
     # because the number of actions in historical data can be
     # different from the ones that you can take with your policy.
     def __init__(self, n_actions, n_outcomes):
+        """Constructor for the historical recommender class.
+
+        Args:
+            n_actions: the number of actions the recommender can choose from (a)
+            n_outcomes: the number of possible outcomes (y)
+        """
         self.n_actions = n_actions
         self.n_outcomes = n_outcomes
         self.reward = self._default_reward
+        self.all_p = list()
 
     # By default, the reward is just equal to the outcome, as the actions play no role.
     def _default_reward(self, action, outcome):
+        """Sets the default reward equal to the outcome.
+
+        Args:
+            action: a
+            outcome: y
+        
+        Returns
+            y.
+        """
         return outcome
 
     # Set the reward function r(a, y)
     def set_reward(self, reward):
+        """Sets a specific reward function.
+
+        Args:
+            reward: a function accepting action and outcome (a, y) in order to
+                calculate the reward
+        """
         self.reward = reward
 
     ##################################
@@ -108,6 +147,11 @@ class HistoricalRecommender:
     # meaning to different parts of the data, and use a supervised
     # model instead.
     def fit_data(self, data):
+        """Fits an unsupervised model to the data.
+
+        Args:
+            data: the observations (x_t)
+        """
         print("Preprocessing data")
         return None
 
@@ -243,14 +287,27 @@ class HistoricalRecommender:
         """Calculates the conditional distribution of actions pi(a_t | x_t).
 
         Args:
-            user_data: observation to calculate the conditional distribution for             
+            user_data: observation to calculate the conditional distribution for  
+
+        Returns
+            The probabilities for different actions a.           
         """
-        return self.recommender_model.get_action_probabilities(user_data)
+        pi = self.recommender_model.get_action_probabilities(user_data)
+        self.all_p.append(pi)
+        return pi
 
     # Return recommendations for a specific user datum
     # This should be an integer in range(self.n_actions)
 
     def recommend(self, user_data):
+        """Recommends an action based on x_t.
+
+        Args:
+            user_data: x_t
+        
+        Returns
+            An action a_t.
+        """
         return np.random.choice(self.n_actions, p=self.get_action_probabilities(user_data))
 
     # Observe the effect of an action. This is an opportunity for you
@@ -293,6 +350,7 @@ class HistoricalRecommender:
 
 
 if __name__ == "__main__":
+    np.random.seed(1)
     data = MedicalData()
     n_actions = len(np.unique(data.a_train))
     n_outcomes = len(np.unique(data.y_train))
@@ -305,3 +363,6 @@ if __name__ == "__main__":
     hist_estimated_utility = hist_recommender.estimate_utility(
         data.x_test, data.a_test, data.y_test)
     print(f"Estimated expected utility = {round(hist_estimated_utility, 4)}")
+    p_star = np.min(hist_recommender.all_p)
+    print(f"p_star = {round(p_star, 4)}")
+    print(f"n = {len(data.x_test)}")

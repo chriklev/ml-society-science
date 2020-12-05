@@ -8,18 +8,28 @@ from martin_historical_recommender import RecommenderModel
 import pandas as pd
 from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
 from sklearn.feature_selection import RFECV
+from sklearn.preprocessing import OneHotEncoder
 
 
 @attr.s
 class Approach1_impr_bl(RecommenderModel):
 
     def fit_treatment_outcome(self, data, actions, outcomes):
+        """Fits a model based on historical data.
+
+        Args:
+            data: covariates
+            actions: array of actions taken
+            outcomes: array of outcomes y | a, x
+        """
 
         self.actions = actions
         self.outcome = outcomes
         self.data = data
 
-        x = np.hstack((data.copy(), actions))
+        action_matrix = self.get_action_matrix(len(data), actions)
+
+        x = np.hstack((data.copy(), action_matrix))
         regression_model = LogisticRegression(max_iter=5000, n_jobs=-1)
 
         regression_model.fit(x, outcomes.flatten())
@@ -30,6 +40,15 @@ class Approach1_impr_bl(RecommenderModel):
         self.policy = policy_model
 
     def get_action_probabilities(self, user_data):
+        """Returns the action probabilities, will be 1 for the action with the 
+        highest expected reward.
+
+        Args:
+            user_data: observation x_t
+
+        Returns
+            An array of probabilities for the different actions.
+        """
         if isinstance(user_data, pd.core.series.Series):
             user_data = user_data.to_numpy().reshape(1, -1)
         else:
@@ -50,11 +69,22 @@ class Approach1_impr_bl(RecommenderModel):
         return pi
 
     def predict_proba(self, data, treatment):
+        """Predicts the probability of y.
+
+        Args:
+            data: x_t
+            treatment: a_t
+
+        Returns:
+            P(y | a, x).
+        """
+        treatment_vector = self.get_treatment_vector(treatment)
+
         if isinstance(data, pd.core.series.Series):
-            data['a'] = treatment
-            user_array = data.to_numpy().reshape(1, -1)
+            x_t = data.to_numpy()
+            user_array = np.hstack((x_t, treatment_vector)).reshape(1, -1)
         else:
-            user_array = np.hstack((data.flatten(), treatment)).reshape(1, -1)
+            user_array = np.hstack((data.flatten(), treatment_vector)).reshape(1, -1)
 
         # P(y_t | a_t, x_t)
         p = self.model.predict_proba(user_array)
@@ -96,7 +126,13 @@ class Approach1_impr_bl(RecommenderModel):
 class Approach1_impr_varsel(RecommenderModel):
 
     def fit_treatment_outcome(self, data, actions, outcomes):
+        """Fits a model based on historical data.
 
+        Args:
+            data: covariates
+            actions: array of actions taken
+            outcomes: array of outcomes y | a, x
+        """
         self.actions = actions
         self.outcome = outcomes
         self.data = data
@@ -112,14 +148,27 @@ class Approach1_impr_varsel(RecommenderModel):
         selected_var = variable_selection_cv.support_
         self.selected_variables = selected_var
 
-        x_selected = np.hstack((data[:, selected_var], actions))
+        action_matrix = self.get_action_matrix(len(data), actions)
+
+        if isinstance(data, pd.DataFrame):
+            x_selected = np.hstack((data.iloc[:, selected_var], action_matrix))
+        else:
+            x_selected = np.hstack((data[:, selected_var], action_matrix))
 
         regression_model.fit(
             x_selected, outcomes.flatten())
         self.model = regression_model
 
     def get_action_probabilities(self, user_data):
-        # print("Recommending")
+        """Returns the action probabilities, will be 1 for the action with the 
+        highest expected reward.
+
+        Args:
+            user_data: observation x_t
+
+        Returns
+            An array of probabilities for the different actions.
+        """
         if isinstance(user_data, pd.core.series.Series):
             user_data = user_data.to_numpy().reshape(1, -1)
         else:
@@ -135,21 +184,30 @@ class Approach1_impr_varsel(RecommenderModel):
 
         pi[np.argmax(expected_reward)] = 1
 
-        assert np.sum(pi) == 1
-
         return pi
 
     def predict_proba(self, data, treatment):
+        """Predicts the probability of y.
+
+        Args:
+            data: x_t
+            treatment: a_t
+
+        Returns:
+            P(y | a, x).
+        """
+        treatment_vector = self.get_treatment_vector(treatment)
+
         if isinstance(data, pd.core.series.Series):
-            data['a'] = treatment
-            user_array = data.to_numpy().reshape(1, -1)
+            x_t = data.to_numpy()
+            user_array = np.hstack((x_t, treatment_vector)).reshape(1, -1)
         else:
-            user_array = np.hstack((data.flatten(), treatment)).reshape(1, -1)
+            user_array = np.hstack((data.flatten(), treatment_vector)).reshape(1, -1)
 
         # P(y_t | a_t, x_t)
-        selected = np.hstack((self.selected_variables, True))
+        selected = np.hstack((self.selected_variables, np.repeat(True, self.n_actions)))
         user_data = user_array.flatten()
-
+    
         p = self.model.predict_proba(user_data[selected].reshape(1, -1))
         return p[0]
 
@@ -194,16 +252,37 @@ class ImprovedRecommender:
     # because the number of actions in historical data can be
     # different from the ones that you can take with your policy.
     def __init__(self, n_actions, n_outcomes):
+        """Constructor for ImprovedRecommender.
+
+        Args:
+            n_actions: number of actions possible
+            n_outcome: number of outcomes possible
+        """
         self.n_actions = n_actions
         self.n_outcomes = n_outcomes
         self.reward = self._default_reward
 
     # By default, the reward is just equal to the outcome, as the actions play no role.
     def _default_reward(self, action, outcome):
+        """Sets the default reward equal to the outcome.
+
+        Args:
+            action: a_t
+            outcome: y_t
+        
+        Returns
+            y_t
+        """
         return outcome
 
     # Set the reward function r(a, y)
     def set_reward(self, reward):
+        """Sets a specific reward function.
+
+        Args:
+            reward: a function accepting action and outcome (a, y) in order to
+                calculate the reward
+        """
         self.reward = reward
 
     ##################################
@@ -215,6 +294,11 @@ class ImprovedRecommender:
     # meaning to different parts of the data, and use a supervised
     # model instead.
     def fit_data(self, data):
+        """Fits an unsupervised model to the data.
+
+        Args:
+            data: the observations (x_t)
+        """
         print("Preprocessing data")
         return None
 
@@ -263,6 +347,16 @@ class ImprovedRecommender:
     ##
     # The policy should be a recommender that implements get_action_probability()
     def estimate_utility(self, data, actions, outcome, policy=None):
+        """Estimates the expected utility for the provided data set.
+
+        Args:
+            data: covariates of observations
+            actions: vector of action taken for the observations
+            outcome: vector of outcomes for the observations
+
+        Returns:
+            The estimated expected utility.
+        """
         T = len(actions)
         print(f"Estimating = {T} observations")
 
@@ -309,6 +403,12 @@ class ImprovedRecommender:
     def predict_proba(self, data, treatment):
         """Calculates the conditional probability P(y | a, x).
 
+        Args:
+            data: x
+            treatment: a
+
+        Returns
+            The distribution for y.
         """
         return self.recommender_model.predict_proba(data, treatment)
 
@@ -317,14 +417,25 @@ class ImprovedRecommender:
     def get_action_probabilities(self, user_data):
         """Calculates the conditional distribution of actions pi(a_t | x_t).
 
-         Args:
+        Args:
              user_data: observation to calculate the conditional distribution for
-         """
+            
+        Returns
+            The probabilities over the different actions.
+        """
         return self.recommender_model.get_action_probabilities(user_data)
 
     # Return recommendations for a specific user datum
     # This should be an integer in range(self.n_actions)
     def recommend(self, user_data):
+        """Recommends an action based on x_t.
+
+        Args:
+            user_data: x_t
+        
+        Returns
+            An action a_t.
+        """
         return np.random.choice(self.n_actions, p=self.get_action_probabilities(user_data))
 
     # Observe the effect of an action. This is an opportunity for you
@@ -361,27 +472,28 @@ class ImprovedRecommender:
 
 
 if __name__ == "__main__":
+    np.random.seed(1)
     data = MedicalData()
     n_actions = len(np.unique(data.a_train))
     n_outcomes = len(np.unique(data.y_train))
 
-    im_recommender = ImprovedRecommender(n_actions, n_outcomes)
-    im_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
-    im_recommender.fit_treatment_outcome(
-        data.x_train, data.a_train, data.y_train)
+    # im_recommender = ImprovedRecommender(n_actions, n_outcomes)
+    # im_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
+    # im_recommender.fit_treatment_outcome(
+    #     data.x_train, data.a_train, data.y_train)
 
-    im_estimated_utility = im_recommender.estimate_utility(
-        data.x_test, data.a_test, data.y_test)
-    print(f"Estimated expected utility = {round(im_estimated_utility, 4)}")
-
-    # im_recommender_varsel = ImprovedRecommender(n_actions, n_outcomes)
-    # im_recommender_varsel.set_reward(lambda a, y: y - 0.1*(a != 0))
-    # varsel_model = Approach1_impr_varsel(
-    #     im_recommender_varsel.n_actions, im_recommender_varsel.n_outcomes)
-    # im_recommender_varsel.fit_treatment_outcome(
-    #     data.x_train, data.a_train, data.y_train, varsel_model)
-
-    # im_varsel_estimated_utility = im_recommender_varsel.estimate_utility(
+    # im_estimated_utility = im_recommender.estimate_utility(
     #     data.x_test, data.a_test, data.y_test)
-    # print(
-    #     f"Estimated expected utility = {round(im_varsel_estimated_utility, 4)}")
+    # print(f"Estimated expected utility = {round(im_estimated_utility, 4)}")
+
+    im_recommender_varsel = ImprovedRecommender(n_actions, n_outcomes)
+    im_recommender_varsel.set_reward(lambda a, y: y - 0.1*(a != 0))
+    varsel_model = Approach1_impr_varsel(
+        im_recommender_varsel.n_actions, im_recommender_varsel.n_outcomes)
+    im_recommender_varsel.fit_treatment_outcome(
+        data.x_train, data.a_train, data.y_train, varsel_model)
+
+    im_varsel_estimated_utility = im_recommender_varsel.estimate_utility(
+        data.x_test, data.a_test, data.y_test)
+    print(
+        f"Estimated expected utility = {round(im_varsel_estimated_utility, 4)}")

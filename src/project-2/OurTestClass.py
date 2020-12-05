@@ -102,35 +102,67 @@ if __name__ == "__main__":
     # Improved #
     ############
 
-    """ imp_recommender2 = martin_improved_recommender.ImprovedRecommender(2, 2)
-    two_action_test(imp_recommender2) 
+    # imp_recommender2 = martin_improved_recommender.ImprovedRecommender(2, 2)
+    # two_action_test(imp_recommender2) 
 
-    imp_recommender129 = martin_improved_recommender.ImprovedRecommender(
+    # imp_recommender129 = martin_improved_recommender.ImprovedRecommender(
+    #     129, 2)
+    # multiple_action_test(imp_recommender129) 
+
+    """ varsel_policy_improved = martin_improved_recommender.Approach1_impr_varsel(2, 2)
+    imp_varsel_recommender2 = martin_improved_recommender.ImprovedRecommender(2, 2)
+    two_action_test(imp_varsel_recommender2, varsel_policy_improved) 
+
+    varsel_policy_improved129 = martin_improved_recommender.Approach1_impr_varsel(129, 2)
+    imp_varsel_recommender129 = martin_improved_recommender.ImprovedRecommender(
         129, 2)
-    multiple_action_test(imp_recommender129) """
+    multiple_action_test(imp_varsel_recommender129, varsel_policy_improved129) """
 
     ############
     # Adaptive #
     ############
 
-    """ ada_recommender2 = martin_adaptive_recommender.AdaptiveRecommender(2, 2)
+    # Thompson sampling
+    """ ada_ts_recommender2 = martin_adaptive_recommender.AdaptiveRecommender(2, 2)
+    policy_ts_model2 = martin_adaptive_recommender.Approach1_adap_thomp(
+        2, 2)
+    two_action_test(ada_ts_recommender2, recommender_model=policy_ts_model2)
+    ada_ts_recommender129 = martin_adaptive_recommender.AdaptiveRecommender(
+        129, 2)
+    policy_ts_model129 = martin_adaptive_recommender.Approach1_adap_thomp(
+        129, 2)
+    multiple_action_test(ada_ts_recommender129,
+                         recommender_model=policy_ts_model129) """
+
+    # Thompson sampling with e-greedy exploration
+    ada_recommender2 = martin_adaptive_recommender.AdaptiveRecommender(2, 2)
     policy_model2 = martin_adaptive_recommender.Approach1_adap_thomp_explore(
         2, 2)
-    policy_model2.set_epsilon(0.10)
-    two_action_test(ada_recommender2, recommender_model=policy_model2) """
+    policy_model2.set_epsilon(0.05)
+    two_action_test(ada_recommender2, recommender_model=policy_model2, n_tests=1000)
 
     ada_recommender129 = martin_adaptive_recommender.AdaptiveRecommender(
         129, 2)
     policy_model129 = martin_adaptive_recommender.Approach1_adap_thomp_explore(
         129, 2)
-    policy_model129.set_epsilon(0.05)
+    policy_model129.set_epsilon(0.01)
     multiple_action_test(ada_recommender129,
                          recommender_model=policy_model129, n_tests=2000)
 
-    """ ada_varsel_recommender129 = martin_adaptive_recommender.AdaptiveRecommender(
+    # Thompson sampling with e-greedy exploration and variable selection
+
+    """ ada_varsel_recommender2 = martin_adaptive_recommender.AdaptiveRecommender(
+        2, 2)
+    policy_model_varsel2 = martin_adaptive_recommender.Approach1_adap_thomp_eps_varsel(
+        2, 2)
+    policy_model_varsel2.set_epsilon(0.05)
+    multiple_action_test(ada_varsel_recommender2,
+                         recommender_model=policy_model_varsel2, n_tests=2000) """
+
+    ada_varsel_recommender129 = martin_adaptive_recommender.AdaptiveRecommender(
         129, 2)
     policy_model_varsel129 = martin_adaptive_recommender.Approach1_adap_thomp_eps_varsel(
         129, 2)
     policy_model_varsel129.set_epsilon(0.05)
     multiple_action_test(ada_varsel_recommender129,
-                         recommender_model=policy_model_varsel129, n_tests=2000) """
+                         recommender_model=policy_model_varsel129, n_tests=2000)
