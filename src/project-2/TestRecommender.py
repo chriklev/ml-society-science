@@ -5,7 +5,7 @@ import numpy as np
 import pandas
 import json
 from tqdm import tqdm
-from martin_adaptive_recommender import AdaptiveRecommender, Approach1_adap_thomp_explore
+from martin_adaptive_recommender import AdaptiveRecommender, Algorithm3, Approach1_adap_thomp, Approach1_adap_thomp_explore
 from martin_improved_recommender import Approach1_impr_varsel, Approach1_impr_bl, ImprovedRecommender
 from martin_historical_recommender import HistoricalRecommender
 
@@ -74,24 +74,41 @@ def fixed_treatments(n_tests = 5000, generator =data_generation.DataGenerator(
 
 def final_full_analysis(n_tests = 1000, generator = data_generation.DataGenerator(
     matrices="./big_generating_matrices.mat")):
+    """
+    Generates utility measures for all models mentioned in the 
+    paper except for those with exploration. 
+
+    Args:
+        n_tests: the number of online policy iterations to be passed to Christos' test policy function.
+        generator: the generator for data. Determines the number of available actions.
+    """
     print("START")
     n_actions = generator.get_n_actions()
     n_outcomes = generator.get_n_outcomes()
     model_list = [AdaptiveRecommender(n_actions=n_actions, n_outcomes=n_outcomes),
+    AdaptiveRecommender(n_actions=n_actions, n_outcomes=n_outcomes),
     AdaptiveLogisticRecommender(n_actions=n_actions, n_outcomes=n_outcomes),
+    ImprovedRecommender(n_actions=n_actions, n_outcomes=n_outcomes),
     ImprovedRecommender(n_actions=n_actions, n_outcomes=n_outcomes),
     LogisticRecommender(n_actions=n_actions, n_outcomes=n_outcomes),
     HistoricalRecommender(n_actions=n_actions, n_outcomes=n_outcomes)]
-    model_names = ["adaptive_m", 
+    model_names = ["adaptive_m_bl", 
+    "adaptive_m_thomp",
     "adaptive_c", 
-    "improved_m", 
+    "improved_m_bl",
+    "improved_m_impr_varsel", 
     "improved_c",
      "historical"]
     utilities = {}
     print("N_ACTIONS ", n_actions)
     for model, name, in zip(model_list, model_names):
         print("On model ", name)
-        model.fit_treatment_outcome(features, actions, outcome)
+        if name[-1]=="p":
+            model.fit_treatment_outcome(features, actions, outcome, Approach1_adap_thomp(n_actions, n_outcomes))
+        elif name[-1] == "l":
+            model.fit_treatment_outcome(features, actions, outcome, Approach1_impr_varsel(n_actions, n_outcomes))
+        else:
+            model.fit_treatment_outcome(features, actions, outcome)
         results = test_policy(generator, model, default_reward_function, n_tests)
         utilities[name] = results
     
@@ -113,6 +130,13 @@ def final_full_analysis(n_tests = 1000, generator = data_generation.DataGenerato
 
 def test_exploration(n_tests = 1000, generator = data_generation.DataGenerator(
     matrices="./big_generating_matrices.mat"), epsilons = 10):
+    """Generates utility measures for algorithms with exploration at various epsilon values.
+
+    Args:
+        n_tests: the number of online policy iterations to be passed to Christos' test policy function.
+        generator: the generator for data. Determines the number of available actions.
+        epsilons: 1/2 the number of epsilons at which the algorithm will be evaluated.
+    """
     n_actions = generator.get_n_actions()
     n_outcomes = generator.get_n_outcomes()
     
@@ -134,12 +158,12 @@ def test_exploration(n_tests = 1000, generator = data_generation.DataGenerator(
 
 #final_anal_dict = final_full_analysis()
 #print("FINAL UTILITIES", final_anal_dict)
-print("DONE WITH TEST")
+#print("DONE WITH TEST")
 #with open('/Users/mjdioli/Documents/STK-IN5000/ml-society-science/src/project-2/final_analysis.json', 'w') as fp:
     #json.dump(final_anal_dict, fp)
 
 
-policy_factory = random_recommender.RandomRecommender
+#policy_factory = random_recommender.RandomRecommender
 #policy_factory = reference_recommender.HistoricalRecommender
 
 """
