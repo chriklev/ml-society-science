@@ -15,6 +15,13 @@ from sklearn.preprocessing import OneHotEncoder
 class Approach1_impr_bl(RecommenderModel):
 
     def fit_treatment_outcome(self, data, actions, outcomes):
+        """Fits a model based on historical data.
+
+        Args:
+            data: covariates
+            actions: array of actions taken
+            outcomes: array of outcomes y | a, x
+        """
 
         self.actions = actions
         self.outcome = outcomes
@@ -33,6 +40,15 @@ class Approach1_impr_bl(RecommenderModel):
         self.policy = policy_model
 
     def get_action_probabilities(self, user_data):
+        """Returns the action probabilities, will be 1 for the action with the 
+        highest expected reward.
+
+        Args:
+            user_data: observation x_t
+
+        Returns
+            An array of probabilities for the different actions.
+        """
         if isinstance(user_data, pd.core.series.Series):
             user_data = user_data.to_numpy().reshape(1, -1)
         else:
@@ -110,7 +126,13 @@ class Approach1_impr_bl(RecommenderModel):
 class Approach1_impr_varsel(RecommenderModel):
 
     def fit_treatment_outcome(self, data, actions, outcomes):
+        """Fits a model based on historical data.
 
+        Args:
+            data: covariates
+            actions: array of actions taken
+            outcomes: array of outcomes y | a, x
+        """
         self.actions = actions
         self.outcome = outcomes
         self.data = data
@@ -138,7 +160,15 @@ class Approach1_impr_varsel(RecommenderModel):
         self.model = regression_model
 
     def get_action_probabilities(self, user_data):
-        # print("Recommending")
+        """Returns the action probabilities, will be 1 for the action with the 
+        highest expected reward.
+
+        Args:
+            user_data: observation x_t
+
+        Returns
+            An array of probabilities for the different actions.
+        """
         if isinstance(user_data, pd.core.series.Series):
             user_data = user_data.to_numpy().reshape(1, -1)
         else:
@@ -222,6 +252,12 @@ class ImprovedRecommender:
     # because the number of actions in historical data can be
     # different from the ones that you can take with your policy.
     def __init__(self, n_actions, n_outcomes):
+        """Constructor for ImprovedRecommender.
+
+        Args:
+            n_actions: number of actions possible
+            n_outcome: number of outcomes possible
+        """
         self.n_actions = n_actions
         self.n_outcomes = n_outcomes
         self.reward = self._default_reward
@@ -231,8 +267,11 @@ class ImprovedRecommender:
         """Sets the default reward equal to the outcome.
 
         Args:
-            action: a
-            outcome: y
+            action: a_t
+            outcome: y_t
+        
+        Returns
+            y_t
         """
         return outcome
 
@@ -308,6 +347,16 @@ class ImprovedRecommender:
     ##
     # The policy should be a recommender that implements get_action_probability()
     def estimate_utility(self, data, actions, outcome, policy=None):
+        """Estimates the expected utility for the provided data set.
+
+        Args:
+            data: covariates of observations
+            actions: vector of action taken for the observations
+            outcome: vector of outcomes for the observations
+
+        Returns:
+            The estimated expected utility.
+        """
         T = len(actions)
         print(f"Estimating = {T} observations")
 
@@ -354,6 +403,12 @@ class ImprovedRecommender:
     def predict_proba(self, data, treatment):
         """Calculates the conditional probability P(y | a, x).
 
+        Args:
+            data: x
+            treatment: a
+
+        Returns
+            The distribution for y.
         """
         return self.recommender_model.predict_proba(data, treatment)
 
@@ -362,14 +417,25 @@ class ImprovedRecommender:
     def get_action_probabilities(self, user_data):
         """Calculates the conditional distribution of actions pi(a_t | x_t).
 
-         Args:
+        Args:
              user_data: observation to calculate the conditional distribution for
-         """
+            
+        Returns
+            The probabilities over the different actions.
+        """
         return self.recommender_model.get_action_probabilities(user_data)
 
     # Return recommendations for a specific user datum
     # This should be an integer in range(self.n_actions)
     def recommend(self, user_data):
+        """Recommends an action based on x_t.
+
+        Args:
+            user_data: x_t
+        
+        Returns
+            An action a_t.
+        """
         return np.random.choice(self.n_actions, p=self.get_action_probabilities(user_data))
 
     # Observe the effect of an action. This is an opportunity for you
@@ -406,6 +472,7 @@ class ImprovedRecommender:
 
 
 if __name__ == "__main__":
+    np.random.seed(1)
     data = MedicalData()
     n_actions = len(np.unique(data.a_train))
     n_outcomes = len(np.unique(data.y_train))

@@ -13,6 +13,11 @@ class RecommenderModel:
     n_outcomes = attr.ib()
 
     def set_reward(self, reward):
+        """Sets reward function.
+
+        Args:
+            reward: function for reward r(a, y).
+        """
         self.reward = reward
     
     def get_action_matrix(self, n_obs, actions):
@@ -51,7 +56,6 @@ class RecommenderModel:
 @attr.s
 class FixedTreatmentPolicy:
     """Represents fixed treatment policies.
-
     """
 
     n_actions = attr.ib()

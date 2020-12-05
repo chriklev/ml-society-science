@@ -4,8 +4,10 @@ from part2_historical_recommender import HistoricalRecommender
 from part2_improved_recommender import ImprovedRecommender, Approach1_policy
 from HistoricalPolicy import HistoricalPolicy
 import pandas as pd
+import numpy as np
 
 if __name__ == "__main__":
+    np.random.seed(1)
     data = MedicalData()
 
     x_joined = [data.x_train, data.x_test]

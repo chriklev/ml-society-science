@@ -122,6 +122,9 @@ class HistoricalRecommender:
         Args:
             action: a
             outcome: y
+        
+        Returns
+            y.
         """
         return outcome
 
@@ -284,7 +287,10 @@ class HistoricalRecommender:
         """Calculates the conditional distribution of actions pi(a_t | x_t).
 
         Args:
-            user_data: observation to calculate the conditional distribution for             
+            user_data: observation to calculate the conditional distribution for  
+
+        Returns
+            The probabilities for different actions a.           
         """
         pi = self.recommender_model.get_action_probabilities(user_data)
         self.all_p.append(pi)
@@ -294,6 +300,14 @@ class HistoricalRecommender:
     # This should be an integer in range(self.n_actions)
 
     def recommend(self, user_data):
+        """Recommends an action based on x_t.
+
+        Args:
+            user_data: x_t
+        
+        Returns
+            An action a_t.
+        """
         return np.random.choice(self.n_actions, p=self.get_action_probabilities(user_data))
 
     # Observe the effect of an action. This is an opportunity for you

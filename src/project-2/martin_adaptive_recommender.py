@@ -467,6 +467,12 @@ class Algorithm3:
 class AdaptiveRecommender:
 
     def __init__(self, n_actions, n_outcomes):
+        """Constructor for AdaptiveRecommender.
+
+        Args:
+            n_actions: number of actions possible
+            n_outcomes: number of outcomes possible
+        """
         self.n_actions = n_actions
         self.n_outcomes = n_outcomes
         self.reward = self._default_reward
@@ -478,6 +484,9 @@ class AdaptiveRecommender:
         Args:
             action: a
             outcome: y
+        
+        Returns:
+            Outcome (y).
         """
         return outcome
 
@@ -581,6 +590,12 @@ class AdaptiveRecommender:
     def predict_proba(self, data, treatment):
         """Calculates the conditional probability P(y | a, x).
 
+        Args:
+            data: x
+            treatment: a
+
+        Returns
+            Distribution over y.
         """
         return self.recommender_model.predict_proba(data, treatment)
 
@@ -588,16 +603,31 @@ class AdaptiveRecommender:
         """Calculates the conditional distribution of actions pi(a_t | x_t).
 
         Args:
-            user_data: observation to calculate the conditional distribution for             
+            user_data: observation to calculate the conditional distribution for   
+
+        Returns
+            Distribution over a.          
         """
         return self.recommender_model.get_action_probabilities(user_data)
 
     def recommend(self, user_data):
+        """Recommends an action based on x_t.
+
+        Args:
+            user_data: x_t
+        
+        Returns
+            An action a_t.
+        """
         return np.random.choice(self.n_actions, p=self.get_action_probabilities(user_data))
 
     def observe(self, user, action, outcome):
         """Updates the model based on new observation.
 
+        Args:
+            user: x_t
+            action: a_t
+            outcome: y_t
         """
         self.recommender_model.observe(user, action, outcome)
 
@@ -611,6 +641,7 @@ class AdaptiveRecommender:
 
 
 if __name__ == "__main__":
+    np.random.seed(1)
     data = MedicalData()
     n_actions = len(np.unique(data.a_train))
     n_outcomes = len(np.unique(data.y_train))

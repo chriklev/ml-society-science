@@ -357,6 +357,7 @@ def plot_posteriors(posteriors, num, title, show=True):
 
 
 if __name__ == "__main__":
+    np.random.seed(1)
     data = MedicalData()
     data.data_analysis()
     expected_utility_1 = data.measure_effect(1)

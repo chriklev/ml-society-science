@@ -139,10 +139,22 @@ class ImprovedRecommender:
 class Approach1_policy:
 
     def __init__(self, n_actions, n_outcomes):
+        """Constructor for approach1_policy in part 2.
+
+        Args:
+            n_actions: number of possible actions
+            n_outcomes: number of possible outcomes
+        """
         self.n_actions = n_actions
         self.n_outcomes = n_outcomes
 
     def fit_data(self, data, var_sel=False):
+        """Fit data with varible selection from historical data.
+
+        Args:
+            data: historical data
+            var_sel: whether or not to use variable selection
+        """
         self.var_sel = var_sel
         print("Preprocessing data")
         y = data.pop('y')
@@ -203,6 +215,14 @@ class Approach1_policy:
         return y_prob[0]
 
     def get_action_probabilities(self, user_data):
+        """Gets pi(a|x).
+
+        Args:
+            user_data: x
+        
+        Returns
+            pi(a|x).
+        """
         e_r = np.zeros(self.n_actions)
 
         for a_t in range(self.n_actions):
