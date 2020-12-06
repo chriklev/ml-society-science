@@ -48,7 +48,11 @@ def fixed_treatments(n_tests = 5000, generator =data_generation.DataGenerator(
     matrices="./big_generating_matrices.mat")):
     n_actions = generator.get_n_actions()
     n_outcomes = generator.get_n_outcomes()
+    personal_columns = ["sex", "smoker"]
+    gene_columns = ["gene " + str(i) for i in range(1, 127)]
+    symptom_columns = ["symptom 1", "symptom 2"]
     model = HistoricalRecommender(n_actions=n_actions, n_outcomes=n_outcomes)
+    model.set_reward(lambda a, y: y - 0.1*(a != 0))
     utilities = {}
     for a_t in tqdm(range(n_actions)):
         print(f"a_t = {a_t}")
@@ -62,9 +66,9 @@ def fixed_treatments(n_tests = 5000, generator =data_generation.DataGenerator(
             a = fixed_policy.recommend()
             y = generator.generate_outcome(x, a)
             rewards[t] = model.reward(a, y)
-            covars[t] = x + [y]
+            covars[t] = list(x) + [y]
 
-        covars = pandas.DataFrame(covars, np.append(np.arange(len(covars)-1), np.array(["y"])))
+        covars = pandas.DataFrame(covars, columns = personal_columns+gene_columns+symptom_columns+["y"])
 
         utilities["fixed_policy_"+str(a_t)] = [rewards,covars]
      
@@ -105,10 +109,13 @@ def final_full_analysis(n_tests = 1000, generator = data_generation.DataGenerato
         print("On model ", name)
         if name[-1]=="p":
             model.fit_treatment_outcome(features, actions, outcome, Approach1_adap_thomp(n_actions, n_outcomes))
+            model.set_reward(lambda a, y: y - 0.1*(a != 0))
         elif name[-1] == "l":
             model.fit_treatment_outcome(features, actions, outcome, Approach1_impr_varsel(n_actions, n_outcomes))
+            model.set_reward(lambda a, y: y - 0.1*(a != 0))
         else:
             model.fit_treatment_outcome(features, actions, outcome)
+            model.set_reward(lambda a, y: y - 0.1*(a != 0))
         results = test_policy(generator, model, default_reward_function, n_tests)
         utilities[name] = results
     
@@ -142,7 +149,7 @@ def test_exploration(n_tests = 1000, generator = data_generation.DataGenerator(
     
 
     utilities ={}
-    for epsilon in np.append(np.linspace(0,0.1,epsilons), np.linspace(0.1, 1, epsilons)):
+    for epsilon in np.linspace(0, 0.5, epsilons):
         print("Epsilon = ", epsilon)
         ada_ts_eps_recommender = AdaptiveRecommender(n_actions, n_outcomes)
         ada_ts_eps_recommender.set_reward(lambda a, y: y - 0.1*(a != 0))
