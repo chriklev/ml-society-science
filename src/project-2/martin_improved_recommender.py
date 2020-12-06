@@ -84,7 +84,8 @@ class Approach1_impr_bl(RecommenderModel):
             x_t = data.to_numpy()
             user_array = np.hstack((x_t, treatment_vector)).reshape(1, -1)
         else:
-            user_array = np.hstack((data.flatten(), treatment_vector)).reshape(1, -1)
+            user_array = np.hstack(
+                (data.flatten(), treatment_vector)).reshape(1, -1)
 
         # P(y_t | a_t, x_t)
         p = self.model.predict_proba(user_array)
@@ -202,12 +203,14 @@ class Approach1_impr_varsel(RecommenderModel):
             x_t = data.to_numpy()
             user_array = np.hstack((x_t, treatment_vector)).reshape(1, -1)
         else:
-            user_array = np.hstack((data.flatten(), treatment_vector)).reshape(1, -1)
+            user_array = np.hstack(
+                (data.flatten(), treatment_vector)).reshape(1, -1)
 
         # P(y_t | a_t, x_t)
-        selected = np.hstack((self.selected_variables, np.repeat(True, self.n_actions)))
+        selected = np.hstack(
+            (self.selected_variables, np.repeat(True, self.n_actions)))
         user_data = user_array.flatten()
-    
+
         p = self.model.predict_proba(user_data[selected].reshape(1, -1))
         return p[0]
 
@@ -269,7 +272,7 @@ class ImprovedRecommender:
         Args:
             action: a_t
             outcome: y_t
-        
+
         Returns
             y_t
         """
@@ -363,7 +366,7 @@ class ImprovedRecommender:
         utility = np.zeros(T)
 
         for t in range(T):
-            print(f"{t}/{T}")
+            # print(f"{t}/{T}")
 
             # one observation
             user_data = data.iloc[t]
@@ -419,7 +422,7 @@ class ImprovedRecommender:
 
         Args:
              user_data: observation to calculate the conditional distribution for
-            
+
         Returns
             The probabilities over the different actions.
         """
@@ -432,7 +435,7 @@ class ImprovedRecommender:
 
         Args:
             user_data: x_t
-        
+
         Returns
             An action a_t.
         """
